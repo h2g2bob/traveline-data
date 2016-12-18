@@ -1,7 +1,9 @@
 #!/usr/bin/python3
+from collections import defaultdict
 from lxml import etree
-import zipfile
+import datetime
 import logging
+import zipfile
 
 # Appears to be:
 # <StopPoints>
@@ -28,6 +30,15 @@ class JPSection():
 		self.jpsection_id = jpsection_id
 		self.departures = []
 
+	def is_frequent(self):
+		return self.has_bus_per_hour_during_range(1, 6, 21) and self.has_bus_per_hour_during_range(4, 7, 19)
+
+	def has_bus_per_hour_during_range(self, num, start, end):
+		bus_per_hour = defaultdict(int)
+		for dep in self.departures:
+			bus_per_hour[dep.hour] += 1
+		return all(bus_per_hour[hour] >= num for hour in range(start, end))
+
 class FileData():
 	def __init__(self):
 		self.jpsections = {}
@@ -39,8 +50,8 @@ class FileData():
 		[lineelem] = elem.xpath(".//tx:Lines/tx:Line/tx:LineName", namespaces=NAMESPACES)
 		self.line_name = str(lineelem.text)
 
-		[descriptionelem] = elem.xpath(".//tx:Description", namespaces=NAMESPACES)
-		self.description_name = str(descriptionelem.text)
+		assert self.description_name is None
+		self.description_name = "".join(elem.xpath(".//tx:Description/text()", namespaces=NAMESPACES))
 
 
 		for jpelem in elem.xpath(".//tx:JourneyPattern", namespaces=NAMESPACES):
@@ -60,7 +71,7 @@ class FileData():
 		jpref = str(journeypatternrefelem.text)
 
 		[departuretimeelem] = elem.xpath(".//tx:DepartureTime", namespaces=NAMESPACES)
-		dtime = str(departuretimeelem.text)
+		dtime = datetime.datetime.strptime(departuretimeelem.text, "%H:%M:%S").time()
 
 		for jpsectionref in self.jp_to_jps[jpref]:
 			jpsection = self.jpsections[jpsectionref]
@@ -86,14 +97,13 @@ def process_file(contentname, f):
 			else:
 				pass
 		except Exception:
-			logging.info("got element: %r %r", contentname, tagname)
+			logging.exception("error parsing element: %r %r", contentname, tagname)
 			logging.info("detail: %s", etree.tostring(elem))
-			raise
+			return
 
 	logging.info("name=%r description=%r", filedata.line_name, filedata.description_name)
-	logging.info("sections=%r", [(jps, len(jps.departures)) for jps in filedata.jpsections.values()])
-
-	raise Exception("END")
+	if any(jps.is_frequent() for jps in filedata.jpsections.values()):
+		logging.info("WOO ITS FREQUENT AND ALL DAY HURRAH")
 
 def iter_files():
 	with zipfile.ZipFile("EA.zip") as container:
