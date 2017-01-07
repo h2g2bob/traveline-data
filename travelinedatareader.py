@@ -309,7 +309,7 @@ def process_file(contentname, f, conn, source):
 	progress('\n')
 
 def iter_files():
-	with zipfile.ZipFile("EA.zip") as container:
+	with zipfile.ZipFile("travellinedata/EA.zip") as container:
 		for contentname in container.namelist():
 			with container.open(contentname) as f:
 				yield contentname, f

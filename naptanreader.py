@@ -10,7 +10,7 @@ import logging
 
 
 def main():
-	with zipfile.ZipFile("NaPTANxml.zip") as container:
+	with zipfile.ZipFile("naptan/NaPTANxml.zip") as container:
 		[contentname] = container.namelist()
 		with container.open(contentname) as f:
 			parser = etree.XMLPullParser(events=("end",), no_network=True)
