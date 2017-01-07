@@ -29,16 +29,36 @@ NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
 }
 
+PARSERS = {
+	'Service': add_service,
+	'VehicleJourney': add_vehiclejourney,
+	'JourneyPatternSection': add_journeypatternsection,
+	'Operator': add_operator,
+	'AnnotatedStopPointRef': add_stoppoint,
+	'RouteSection': add_routesection,
+	'Route': add_route,
+}
+
+
+def add_operator(conn, elem, source):
+	operator_id = elem.get("id")
+	[shortname] = elem.xpath("./tx:OperatorShortName/text()", namespaces=NAMESPACES)
+	conn.execute("""
+		INSERT INTO operator(source, operator_id, shortname)
+		VALUES (?, ?, ?);
+	""", (source, operator_id, shortname,))
+
 def add_service(conn, elem, source):
 	[servicecode] = elem.xpath("./tx:ServiceCode/text()", namespaces=NAMESPACES)
 	[privatecode] = elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES)
 	[mode] = elem.xpath("./tx:Mode/text()", namespaces=NAMESPACES)
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
+	[operator] = elem.xpath("./tx:RegisteredOperatorRef/text()", namespaces=NAMESPACES)
 
 	conn.execute("""
-		INSERT INTO service(source, servicecode, privatecode, mode, description)
+		INSERT INTO service(source, servicecode, privatecode, mode, operator, description)
 		VALUES (?, ?, ?, ?, ?)
-	""", (source, servicecode, privatecode, mode, description))
+	""", (source, servicecode, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
 		line_id = lineelem.get("id")
@@ -76,7 +96,7 @@ def add_journeypatternsection(conn, elem, source):
 def add_vehiclejourney(conn, elem, source):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 	[jpref_id] = elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES)
-	[lineref_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
+	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
 	[privatecode_id] = elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES)
 	[departuretime] = elem.xpath("./tx:DepartureTime/text()", namespaces=NAMESPACES)
 
@@ -113,10 +133,44 @@ def add_vehiclejourney(conn, elem, source):
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
 	conn.execute("""
-		INSERT INTO vehiclejourney(source, vjcode, jpref, lineref, privatecode, days_mask, deptime, deptime_seconds)
+		INSERT INTO vehiclejourney(source, vjcode, jpref, line_id, privatecode, days_mask, deptime, deptime_seconds)
 		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-	""", (source, vjcode_id, jpref_id, lineref_id, privatecode_id, days_bitmask, departuretime, departuretime_seconds))
+	""", (source, vjcode_id, jpref_id, line_id, privatecode_id, days_bitmask, departuretime, departuretime_seconds))
 
+def add_route(conn, elem, source):
+	route_id = elem.get("id")
+	[privatecode] = elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES)
+	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
+	[routesection] = elem.xpath("./tx:RouteSectionRef/text()", namespaces=NAMESPACES)
+
+	conn.execute("""
+		INSERT INTO route(source, route_id, privatecode, routesection, description)
+		VALUES (?, ?, ?, ?, ?);
+	""", (source, route_id, privatecode, routesection, description,))
+
+def add_routesection(conn, elem, source):
+	routesection = elem.get("id")
+	for linkelem in elem.xpath("./tx:RouteLink", namespaces=NAMESPACES):
+		routelink = linkelem.get("id")
+		[from_stoppoint] = linkelem.xpath("./tx:From/tx:StopPointRef/text()", namespaces=NAMESPACES)
+		[to_stoppoint] = linkelem.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
+		[direction] = linkelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
+
+		conn.execute("""
+			INSERT INTO routelink(source, routelink, routesection, from_stoppoint, to_stoppoint, direction)
+			VALUES (?, ?, ?, ?, ?, ?);
+		""", (source, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
+
+def add_stoppoint(conn, elem, source):
+	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
+	[name] = elem.xpath("./tx:CommonName/text()", namespaces=NAMESPACES)
+	[indicator] = elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES)
+	[locality_name] = elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES)
+	[locality_qualifier] = elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES)
+	conn.execute("""
+		INSERT INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
+		VALUES (?, ?, ?, ?, ?, ?);
+	""", (source, stoppoint, name, indicator, locality_name, locality_qualifier,))
 
 def create_tables(conn):
 	conn.execute("""
@@ -142,7 +196,7 @@ def create_tables(conn):
 			source TEXT,
 			vjcode TEXT PRIMARY KEY,
 			jpref TEXT,
-			lineref TEXT,
+			line_id TEXT,
 			privatecode TEXT,
 			days_mask INT,
 			deptime TEXT,
@@ -157,6 +211,7 @@ def create_tables(conn):
 			servicecode TEXT PRIMARY KEY,
 			privatecode TEXT,
 			mode TEXT,
+			operator_id TEXT,
 			description TEXT);
 		""")
 	conn.execute("""
@@ -181,6 +236,50 @@ def create_tables(conn):
 			routeref TEXT,
 			direction TEXT);
 		""")
+	conn.execute("""
+		DROP TABLE IF EXISTS operator;
+		""")
+	conn.execute("""
+		CREATE TABLE operator(
+			source TEXT,
+			operator_id TEXT PRIMARY KEY,
+			shortname TEXT);
+		""")
+	conn.execute("""
+		DROP TABLE IF EXISTS route;
+		""")
+	conn.execute("""
+		CREATE TABLE route(
+			source TEXT,
+			route_id TEXT PRIMARY KEY,
+			privatecode TEXT,
+			routesection TEXT,
+			description TEXT);
+		""")
+	conn.execute("""
+		DROP TABLE IF EXISTS routelink;
+		""")
+	conn.execute("""
+		CREATE TABLE routelink(
+			source TEXT,
+			routelink TEXT PRIMARY KEY,
+			routesection TEXT,
+			from_stoppoint TEXT,
+			to_stoppoint TEXT,
+			direction TEXT);
+		""")
+	conn.execute("""
+		DROP TABLE IF EXISTS stoppoint;
+		""")
+	conn.execute("""
+		CREATE TABLE stoppoint(
+			source TEXT,
+			stoppoint TEXT PRIMARY KEY,
+			name TEXT,
+			indicator TEXT,
+			locality_name TEXT,
+			locality_qualifier TEXT);
+		""")
 
 def main():
 	with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
@@ -188,32 +287,28 @@ def main():
 		for contentname, f in iter_files():
 			process_file(contentname, f, conn, contentname)
 
+def progress(char):
+	import sys;
+	sys.stdout.write(char)
+	sys.stdout.flush()
+
 def process_file(contentname, f, conn, source):
 	for tagname, elem in iter_elements(f):
 		try:
-			if tagname == 'Service':
-				add_service(conn, elem, source)
-				print("s", end="")
-			elif tagname == 'VehicleJourney':
-				add_vehiclejourney(conn, elem, source)
-				print("v", end="")
-			elif tagname == 'JourneyPatternSection':
-				add_journeypatternsection(conn, elem, source)
-				print("p", end="")
-			else:
-				pass
-			import sys; sys.stdout.flush()
+			parser_func = PARSERS[tagname]
+			parser_func(conn, elem, source)
+			progress('.')
 		except Exception:
 			logging.exception("error parsing element: %r %r", contentname, tagname)
 			logging.info("detail: %s", etree.tostring(elem))
-			raise # XXX return
+			raise # or return to ignore exceptions
+	progress('\n')
 
 def iter_files():
 	with zipfile.ZipFile("EA.zip") as container:
 		for contentname in container.namelist():
 			with container.open(contentname) as f:
 				yield contentname, f
-				return # XXX
 
 def iter_elements(f):
 	parser = etree.XMLPullParser(events=("end",), no_network=True)
@@ -224,7 +319,7 @@ def iter_elements(f):
 		parser.feed(data)
 		for action, elem in parser.read_events():
 			tagname = elem.tag.split("}")[-1]
-			if tagname in {"AnnotatedStopPointRef", "RouteSection", "Route", "JourneyPatternSection", "Operator", "Service", "VehicleJourney"}:
+			if tagname in PARSERS.keys():
 				yield tagname, elem
 				cleanup(elem)
 	parser.close()
