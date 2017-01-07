@@ -59,10 +59,11 @@ def handle_stoppoint(elem):
 
 		name = text_content(elem, ".//naptan:Descriptor/naptan:CommonName/text()")
 		code = text_content(elem, ".//naptan:NaptanCode/text()")
+		atcocode = text_content(elem, ".//naptan:AtcoCode/text()")
 		latitude = float_content(elem, ".//naptan:Latitude/text()")
 		longitude = float_content(elem, ".//naptan:Longitude/text()")
 
-		print(code, name, latitude, longitude)
+		print(code, atcocode, name, latitude, longitude)
 
 	except Exception:
 		logging.info('problem string %r', etree.tostring(elem))
