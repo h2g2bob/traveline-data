@@ -29,22 +29,13 @@ NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
 }
 
-PARSERS = {
-	'Service': add_service,
-	'VehicleJourney': add_vehiclejourney,
-	'JourneyPatternSection': add_journeypatternsection,
-	'Operator': add_operator,
-	'AnnotatedStopPointRef': add_stoppoint,
-	'RouteSection': add_routesection,
-	'Route': add_route,
-}
 
 
 def add_operator(conn, elem, source):
 	operator_id = elem.get("id")
 	[shortname] = elem.xpath("./tx:OperatorShortName/text()", namespaces=NAMESPACES)
 	conn.execute("""
-		INSERT INTO operator(source, operator_id, shortname)
+		INSERT OR REPLACE INTO operator(source, operator_id, shortname)
 		VALUES (?, ?, ?);
 	""", (source, operator_id, shortname,))
 
@@ -56,8 +47,8 @@ def add_service(conn, elem, source):
 	[operator] = elem.xpath("./tx:RegisteredOperatorRef/text()", namespaces=NAMESPACES)
 
 	conn.execute("""
-		INSERT INTO service(source, servicecode, privatecode, mode, operator, description)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO service(source, servicecode, privatecode, mode, operator_id, description)
+		VALUES (?, ?, ?, ?, ?, ?)
 	""", (source, servicecode, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
@@ -164,11 +155,14 @@ def add_routesection(conn, elem, source):
 def add_stoppoint(conn, elem, source):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
 	[name] = elem.xpath("./tx:CommonName/text()", namespaces=NAMESPACES)
-	[indicator] = elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES)
+	try:
+		[indicator] = elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES)
+	except ValueError:
+		indicator = None
 	[locality_name] = elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES)
 	[locality_qualifier] = elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES)
 	conn.execute("""
-		INSERT INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
+		INSERT OR REPLACE INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
 		VALUES (?, ?, ?, ?, ?, ?);
 	""", (source, stoppoint, name, indicator, locality_name, locality_qualifier,))
 
@@ -280,6 +274,16 @@ def create_tables(conn):
 			locality_name TEXT,
 			locality_qualifier TEXT);
 		""")
+
+PARSERS = {
+	'Service': add_service,
+	'VehicleJourney': add_vehiclejourney,
+	'JourneyPatternSection': add_journeypatternsection,
+	'Operator': add_operator,
+	'AnnotatedStopPointRef': add_stoppoint,
+	'RouteSection': add_routesection,
+	'Route': add_route,
+}
 
 def main():
 	with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:

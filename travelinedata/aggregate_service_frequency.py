@@ -21,7 +21,7 @@ def create_tables(conn):
 		CREATE TABLE vehiclejourney_per_hour(
 			source TEXT,
 			jpref TEXT,
-			lineref TEXT,
+			line_id TEXT,
 			days_mask INT,
 			hour_0 INT,
 			hour_1 INT,
@@ -55,7 +55,7 @@ def analyze_data(conn):
 		INSERT INTO vehiclejourney_per_hour SELECT
 			source,
 			jpref,
-			lineref,
+			line_id,
 			days_mask,
 			sum(case when deptime_seconds / 3600 == 0 then 1 else 0 end) as hour_0,
 			sum(case when deptime_seconds / 3600 == 1 then 1 else 0 end) as hour_1,

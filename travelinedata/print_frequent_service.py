@@ -50,6 +50,7 @@ def print_frequent_services(conn):
 	for row in cur:
 		print(row)
 
+
 if __name__ == '__main__':
 	logging.basicConfig(level=logging.INFO)
 	main()
