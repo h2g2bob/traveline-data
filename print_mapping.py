@@ -2,6 +2,9 @@
 #
 # Daytime frequency of bus services between bus stop pairs:
 #
+#
+# python3 print_mapping.py | zip > frequent.kmz
+#
 from collections import defaultdict
 from lxml import etree
 from xml.sax.saxutils import escape as xml_escape
@@ -100,6 +103,10 @@ def get_style_name(bph):
 		return None
 
 def print_bus_stop_pair_frequency(conn):
+	#
+	# For a simple example of the number of buses between two stops:
+	# sqlite> select days_mask, deptime from vehiclejourney vj where jpref in (select jpref from journeypattern_service where jpsectionref in (select jpsection from jptiminglink where from_stoppoint = '390030720' and to_stoppoint = '390030272'));
+	#
 	cur = conn.cursor()
 	cur.execute("""
 		select
@@ -119,7 +126,7 @@ def print_bus_stop_pair_frequency(conn):
 		left join naptan n_to on n_to.atcocode = jptl.to_stoppoint
 		left join line l on vjph.line_id = l.line_id
 		where days_mask & 1
-		group by 1, 2;
+		group by 1, 2, 3, 4, 5, 6;
 	""")
 	print(KML_DOCUMENT_TOP.format(name="Frequent services", description="Parts of bus routes on which many busses run during the daytime"))
 	for from_code, from_lat, from_long, to_code, to_lat, to_long, daytime_busses_per_hour, different_lines, line_names in cur:
@@ -134,7 +141,7 @@ def print_bus_stop_pair_frequency(conn):
 				to_lat=to_lat,
 				to_long=to_long,
 				style=style,
-				name=xml_escape("{} buses from: {}".format(daytime_busses_per_hour, line_names))))
+				name=xml_escape("({} to {}) {} buses from: {}".format(from_code, to_code, daytime_busses_per_hour, line_names))))
 	print(KML_DOCUMENT_BOTTOM)
 
 if __name__ == '__main__':
