@@ -3,7 +3,7 @@
 # Daytime frequency of bus services between bus stop pairs:
 #
 #
-# python3 print_mapping.py | zip > frequent.kmz
+# python3 print_mapping.py | zip -9 > frequent.kmz
 #
 from collections import defaultdict
 from lxml import etree
