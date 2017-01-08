@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import zipfile
 import os
+import argparse
 
 # Appears to be:
 # <StopPoints>
@@ -63,8 +64,8 @@ def add_service(conn, elem, source):
 	for jpelem in elem.xpath("./tx:StandardService/tx:JourneyPattern", namespaces=NAMESPACES):
 		jpref = jpelem.get("id")
 		[direction] = jpelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
-		[routeref] = jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES)
-		[jpsectionref] = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
+		routeref = maybe_one(jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES))
+		[jpsectionref] = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)  # XXX this can have MANY items, for example in NW.zip/NW_04_HBC_X58_1.xml -- we would also need to edit print_mappings.py because we do vehiclejourney(perhour) to journeypattern_service using this link
 		conn.execute("""
 			INSERT OR REPLACE INTO journeypattern_service(source, jpref, servicecode, jpsectionref, routeref, direction)
 			VALUES (?, ?, ?, ?, ?, ?)
@@ -74,7 +75,7 @@ def add_journeypatternsection(conn, elem, source):
 	jpsection_id = elem.get("id")
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
 		jptiminglink_id = jptl.get("id")
-		[routelinkref_id] = jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES)
+		routelinkref_id = maybe_one(jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES))
 		[runtime] = jptl.xpath("./tx:RunTime/text()", namespaces=NAMESPACES)
 		from_sequence = maybe_one(jptl.xpath("./tx:From/@SequenceNumber", namespaces=NAMESPACES))
 		to_sequence = maybe_one(jptl.xpath("./tx:To/@SequenceNumber", namespaces=NAMESPACES))
@@ -87,7 +88,7 @@ def add_journeypatternsection(conn, elem, source):
 
 def add_vehiclejourney(conn, elem, source):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
-	[jpref_id] = elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES)
+	jpref_id = maybe_one(elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES))
 	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[departuretime] = elem.xpath("./tx:DepartureTime/text()", namespaces=NAMESPACES)
@@ -105,6 +106,8 @@ def add_vehiclejourney(conn, elem, source):
 			days_bitmask |= MON|TUE|WED|THUR|FRI
 		elif days.tag == '{http://www.transxchange.org.uk/}MondayToSaturday':
 			days_bitmask |= MON|TUE|WED|THUR|FRI|SAT
+		elif days.tag == '{http://www.transxchange.org.uk/}MondayToSunday':
+			days_bitmask |= MON|TUE|WED|THUR|FRI|SAT|SUN
 		elif days.tag == '{http://www.transxchange.org.uk/}Saturday':
 			days_bitmask |= SAT
 		elif days.tag == '{http://www.transxchange.org.uk/}Sunday':
@@ -166,7 +169,7 @@ def add_stoppoint(conn, elem, source):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
 	[name] = elem.xpath("./tx:CommonName/text()", namespaces=NAMESPACES)
 	indicator = maybe_one(elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES))
-	[locality_name] = elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES)
+	locality_name = maybe_one(elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES))
 	locality_qualifier = maybe_one(elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES))
 	conn.execute("""
 		INSERT OR REPLACE INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
@@ -293,20 +296,63 @@ PARSERS = {
 }
 
 def main():
-	with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
-		create_tables(conn)
-		for zip_filename, contentname, f in iter_files():
-			source = zip_filename + "/" + contentname
-			process_file(contentname, f, conn, source)
+	args = parse_args()
 
-def process_file(contentname, f, conn, source):
+	if args.destroy_create_tables:
+		with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
+			create_tables(conn)
+
+	if args.process:
+		for zip_filename in list_zip_filenames():
+			logging.info("Processing zip file %s...", zip_filename)
+			process_zipfile(zip_filename)
+
+def process_zipfile(zip_filename):
+	with zipfile.ZipFile(zip_filename) as container:
+		for contentname in container.namelist():
+			source = zip_filename.split("/")[-1] + "/" + contentname
+			with sqlite3.connect("data.sqlite3", isolation_level=None) as conn:
+				if not have_data_for_source(conn, source):
+					with container.open(contentname) as f:
+						try:
+							conn.execute("begin;")
+							process_xml_file(f, conn, source)
+							conn.execute("commit;")
+						except Exception:
+							logging.exception("Skipping file %s", source)
+
+
+def have_data_for_source(conn, source):
+	cur = conn.cursor()
+	cur.execute("select 1 from vehiclejourney where source = ? limit 1", (source,))
+	num_rows = len(list(cur))
+	if num_rows > 0:
+		return True
+
+	cur.execute("select 1 from service where source = ? limit 1", (source,))
+	num_rows = len(list(cur))
+	if num_rows > 0:
+		return True
+
+	return False
+
+
+def parse_args():
+	parser = argparse.ArgumentParser(prog='Process traveline data')
+	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
+	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
+
+	return parser.parse_args()
+
+
+def process_xml_file(f, conn, source):
 	logging.info("Processing file %s", source)
 	for tagname, elem in iter_elements(f):
 		try:
 			parser_func = PARSERS[tagname]
 			parser_func(conn, elem, source)
 		except Exception:
-			logging.exception("error parsing element: %r %r", contentname, tagname)
+			logging.exception("error parsing element: %r %r", source, tagname)
 			logging.info("detail: %s", etree.tostring(elem))
 			raise # or return to ignore exceptions
 
@@ -315,13 +361,6 @@ def list_zip_filenames():
 		"travelinedata/" + name
 		for name in os.listdir("travelinedata/")
 		if name.endswith(".zip")]
-
-def iter_files():
-	for zip_filename in list_zip_filenames():
-		with zipfile.ZipFile(zip_filename) as container:
-			for contentname in container.namelist():
-				with container.open(contentname) as f:
-					yield zip_filename, contentname, f
 
 def iter_elements(f):
 	parser = etree.XMLPullParser(events=("end",), no_network=True)
