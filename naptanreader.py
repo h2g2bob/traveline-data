@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 from lxml import etree
 import zipfile
+import sqlite3
 import logging
 
 # Appears to be:
@@ -10,6 +11,31 @@ import logging
 
 
 def main():
+	with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
+		create_tables(conn)
+		add_data_to_table(conn)
+
+def create_tables(conn):
+	conn.execute("""
+		DROP TABLE IF EXISTS naptan;
+	""")
+	conn.execute("""
+		CREATE TABLE naptan (
+			code TEXT PRIMARY KEY,
+			atcocode TEXT UNIQUE,
+			name TEXT,
+			latitude REAL,
+			longitude REAL)
+	""")
+
+def add_data_to_table(conn):
+	for code, atcocode, name, latitude, longitude in get_datapoints_from_xml():
+		conn.execute("""
+			INSERT INTO naptan (code, atcocode, name, latitude, longitude)
+			VALUES (?, ?, ?, ?, ?);
+		""", (code, atcocode, name, latitude, longitude,))
+
+def get_datapoints_from_xml():
 	with zipfile.ZipFile("naptan/NaPTANxml.zip") as container:
 		[contentname] = container.namelist()
 		with container.open(contentname) as f:
@@ -21,7 +47,8 @@ def main():
 				parser.feed(data)
 				for action, elem in parser.read_events():
 					if elem.tag.endswith('StopPoint'):
-						handle_stoppoint(elem)
+						if elem.get("Status") == "active":
+							yield handle_stoppoint(elem)
 						cleanup(elem)
 
 def cleanup(element):
@@ -54,16 +81,13 @@ def text_content(elem, path):
 
 def handle_stoppoint(elem):
 	try:
-		if elem.get("Status") != "active":
-			return
-
 		name = text_content(elem, ".//naptan:Descriptor/naptan:CommonName/text()")
 		code = text_content(elem, ".//naptan:NaptanCode/text()")
 		atcocode = text_content(elem, ".//naptan:AtcoCode/text()")
 		latitude = float_content(elem, ".//naptan:Latitude/text()")
 		longitude = float_content(elem, ".//naptan:Longitude/text()")
 
-		print(code, atcocode, name, latitude, longitude)
+		return (code, atcocode, name, latitude, longitude)
 
 	except Exception:
 		logging.info('problem string %r', etree.tostring(elem))
