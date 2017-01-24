@@ -3,7 +3,7 @@ from collections import defaultdict
 from lxml import etree
 import datetime
 import logging
-import sqlite3
+import psycopg2
 import zipfile
 import os
 import argparse
@@ -33,13 +33,20 @@ NAMESPACES = {
 
 
 
+def database():
+	# one database transation
+	return psycopg2.connect("dbname=travelinedata")
+
+
 def add_operator(conn, elem, source):
 	operator_id = elem.get("id")
 	[shortname] = elem.xpath("./tx:OperatorShortName/text()", namespaces=NAMESPACES)
-	conn.execute("""
-		INSERT OR REPLACE INTO operator(source, operator_id, shortname)
-		VALUES (?, ?, ?);
-	""", (source, operator_id, shortname,))
+	with conn.cursor() as cur:
+		cur.execute("""
+			INSERT INTO operator(source, operator_id, shortname)
+			VALUES (%s, %s, %s)
+			ON CONFLICT DO NOTHING
+		""", (source, operator_id, shortname,))
 
 
 def add_service(conn, elem, source):
@@ -49,28 +56,33 @@ def add_service(conn, elem, source):
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
 	[operator] = elem.xpath("./tx:RegisteredOperatorRef/text()", namespaces=NAMESPACES)
 
-	conn.execute("""
-		INSERT INTO service(source, servicecode, privatecode, mode, operator_id, description)
-		VALUES (?, ?, ?, ?, ?, ?)
-	""", (source, servicecode, privatecode, mode, operator, description))
+	with conn.cursor() as cur:
+		cur.execute("""
+			INSERT INTO service(source, servicecode, privatecode, mode, operator_id, description)
+			VALUES (%s, %s, %s, %s, %s, %s)
+		""", (source, servicecode, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
 		line_id = lineelem.get("id")
 		[line_name] = lineelem.xpath("./tx:LineName/text()", namespaces=NAMESPACES)	
-		conn.execute("""
-			INSERT OR REPLACE INTO line(source, line_id, servicecode, line_name)
-			VALUES (?, ?, ?, ?)
-		""", (source, line_id, servicecode, line_name))
+		with conn.cursor() as cur:
+			cur.execute("""
+				INSERT INTO line(source, line_id, servicecode, line_name)
+				VALUES (%s, %s, %s, %s)
+				ON CONFLICT DO NOTHING
+			""", (source, line_id, servicecode, line_name))
 
 	for jpelem in elem.xpath("./tx:StandardService/tx:JourneyPattern", namespaces=NAMESPACES):
 		jpref = jpelem.get("id")
 		[direction] = jpelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
 		routeref = maybe_one(jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES))
 		[jpsectionref] = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)  # XXX this can have MANY items, for example in NW.zip/NW_04_HBC_X58_1.xml -- we would also need to edit print_mappings.py because we do vehiclejourney(perhour) to journeypattern_service using this link
-		conn.execute("""
-			INSERT OR REPLACE INTO journeypattern_service(source, jpref, servicecode, jpsectionref, routeref, direction)
-			VALUES (?, ?, ?, ?, ?, ?)
-		""", (source, jpref, servicecode, jpsectionref, routeref, direction))
+		with conn.cursor() as cur:
+			cur.execute("""
+				INSERT INTO journeypattern_service(source, jpref, servicecode, jpsectionref, routeref, direction)
+				VALUES (%s, %s, %s, %s, %s, %s)
+				ON CONFLICT DO NOTHING
+			""", (source, jpref, servicecode, jpsectionref, routeref, direction))
 
 def add_journeypatternsection(conn, elem, source):
 	jpsection_id = elem.get("id")
@@ -82,10 +94,12 @@ def add_journeypatternsection(conn, elem, source):
 		to_sequence = maybe_one(jptl.xpath("./tx:To/@SequenceNumber", namespaces=NAMESPACES))
 		[from_stoppoint] = jptl.xpath("./tx:From/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
-		conn.execute("""
-			INSERT OR REPLACE INTO jptiminglink(source, jptiminglink, jpsection, routelinkref, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		""", (source, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+		with conn.cursor() as cur:
+			cur.execute("""
+				INSERT INTO jptiminglink(source, jptiminglink, jpsection, routelinkref, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+				ON CONFLICT DO NOTHING
+			""", (source, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
 def add_vehiclejourney(conn, elem, source):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
@@ -130,10 +144,12 @@ def add_vehiclejourney(conn, elem, source):
 	departuretime_time = datetime.datetime.strptime(departuretime, "%H:%M:%S").time()
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
-	conn.execute("""
-		INSERT OR REPLACE INTO vehiclejourney(source, vjcode, jpref, line_id, privatecode, days_mask, deptime, deptime_seconds)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?)
-	""", (source, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
+	with conn.cursor() as cur:
+		cur.execute("""
+			INSERT INTO vehiclejourney(source, vjcode, jpref, line_id, privatecode, days_mask, deptime, deptime_seconds)
+			VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+			ON CONFLICT DO NOTHING
+		""", (source, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
 def add_route(conn, elem, source):
 	route_id = elem.get("id")
@@ -141,10 +157,12 @@ def add_route(conn, elem, source):
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
 	[routesection] = elem.xpath("./tx:RouteSectionRef/text()", namespaces=NAMESPACES)
 
-	conn.execute("""
-		INSERT OR REPLACE INTO route(source, route_id, privatecode, routesection, description)
-		VALUES (?, ?, ?, ?, ?);
-	""", (source, route_id, privatecode, routesection, description,))
+	with conn.cursor() as cur:
+		cur.execute("""
+			INSERT INTO route(source, route_id, privatecode, routesection, description)
+			VALUES (%s, %s, %s, %s, %s)
+			ON CONFLICT DO NOTHING
+		""", (source, route_id, privatecode, routesection, description,))
 
 def add_routesection(conn, elem, source):
 	routesection = elem.get("id")
@@ -154,10 +172,12 @@ def add_routesection(conn, elem, source):
 		[to_stoppoint] = linkelem.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		[direction] = linkelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
 
-		conn.execute("""
-			INSERT OR REPLACE INTO routelink(source, routelink, routesection, from_stoppoint, to_stoppoint, direction)
-			VALUES (?, ?, ?, ?, ?, ?);
-		""", (source, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
+		with conn.cursor() as cur:
+			cur.execute("""
+				INSERT INTO routelink(source, routelink, routesection, from_stoppoint, to_stoppoint, direction)
+				VALUES (%s, %s, %s, %s, %s, %s)
+				ON CONFLICT DO NOTHING
+			""", (source, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
 
 def maybe_one(many):
 	if len(many) == 1:
@@ -172,119 +192,122 @@ def add_stoppoint(conn, elem, source):
 	indicator = maybe_one(elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES))
 	locality_name = maybe_one(elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES))
 	locality_qualifier = maybe_one(elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES))
-	conn.execute("""
-		INSERT OR REPLACE INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
-		VALUES (?, ?, ?, ?, ?, ?);
-	""", (source, stoppoint, name, indicator, locality_name, locality_qualifier,))
+	with conn.cursor() as cur:
+		cur.execute("""
+			INSERT INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
+			VALUES (%s, %s, %s, %s, %s, %s)
+			ON CONFLICT DO NOTHING
+		""", (source, stoppoint, name, indicator, locality_name, locality_qualifier,))
 
 def create_tables(conn):
-	conn.execute("""
-		DROP TABLE IF EXISTS jptiminglink;
-		""")
-	conn.execute("""
-		CREATE TABLE jptiminglink(
-			source TEXT,
-			jptiminglink TEXT PRIMARY KEY,
-			jpsection TEXT,
-			routelinkref TEXT,
-			runtime TEXT,
-			from_sequence INT,
-			from_stoppoint TEXT,
-			to_sequence INT,
-			to_stoppoint TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS vehiclejourney;
-		""")
-	conn.execute("""
-		CREATE TABLE vehiclejourney(
-			source TEXT,
-			vjcode TEXT PRIMARY KEY,
-			jpref TEXT,
-			line_id TEXT,
-			privatecode TEXT,
-			days_mask INT,
-			deptime TEXT,
-			deptime_seconds INT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS service;
-		""")
-	conn.execute("""
-		CREATE TABLE service(
-			source TEXT,
-			servicecode TEXT PRIMARY KEY,
-			privatecode TEXT,
-			mode TEXT,
-			operator_id TEXT,
-			description TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS line;
-		""")
-	conn.execute("""
-		CREATE TABLE line(
-			source TEXT,
-			line_id TEXT PRIMARY KEY,
-			servicecode TEXT,
-			line_name TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS journeypattern_service;
-		""")
-	conn.execute("""
-		CREATE TABLE journeypattern_service(
-			source TEXT,
-			jpref TEXT PRIMARY KEY,
-			servicecode TEXT,
-			jpsectionref TEXT,
-			routeref TEXT,
-			direction TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS operator;
-		""")
-	conn.execute("""
-		CREATE TABLE operator(
-			source TEXT,
-			operator_id TEXT PRIMARY KEY,
-			shortname TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS route;
-		""")
-	conn.execute("""
-		CREATE TABLE route(
-			source TEXT,
-			route_id TEXT PRIMARY KEY,
-			privatecode TEXT,
-			routesection TEXT,
-			description TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS routelink;
-		""")
-	conn.execute("""
-		CREATE TABLE routelink(
-			source TEXT,
-			routelink TEXT PRIMARY KEY,
-			routesection TEXT,
-			from_stoppoint TEXT,
-			to_stoppoint TEXT,
-			direction TEXT);
-		""")
-	conn.execute("""
-		DROP TABLE IF EXISTS stoppoint;
-		""")
-	conn.execute("""
-		CREATE TABLE stoppoint(
-			source TEXT,
-			stoppoint TEXT PRIMARY KEY,
-			name TEXT,
-			indicator TEXT,
-			locality_name TEXT,
-			locality_qualifier TEXT);
-		""")
+	with conn.cursor() as cur:
+		cur.execute("""
+			DROP TABLE IF EXISTS jptiminglink;
+			""")
+		cur.execute("""
+			CREATE TABLE jptiminglink(
+				source TEXT,
+				jptiminglink TEXT PRIMARY KEY,
+				jpsection TEXT,
+				routelinkref TEXT,
+				runtime TEXT,
+				from_sequence INT,
+				from_stoppoint TEXT,
+				to_sequence INT,
+				to_stoppoint TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS vehiclejourney;
+			""")
+		cur.execute("""
+			CREATE TABLE vehiclejourney(
+				source TEXT,
+				vjcode TEXT PRIMARY KEY,
+				jpref TEXT,
+				line_id TEXT,
+				privatecode TEXT,
+				days_mask INT,
+				deptime TEXT,
+				deptime_seconds INT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS service;
+			""")
+		cur.execute("""
+			CREATE TABLE service(
+				source TEXT,
+				servicecode TEXT PRIMARY KEY,
+				privatecode TEXT,
+				mode TEXT,
+				operator_id TEXT,
+				description TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS line;
+			""")
+		cur.execute("""
+			CREATE TABLE line(
+				source TEXT,
+				line_id TEXT PRIMARY KEY,
+				servicecode TEXT,
+				line_name TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS journeypattern_service;
+			""")
+		cur.execute("""
+			CREATE TABLE journeypattern_service(
+				source TEXT,
+				jpref TEXT PRIMARY KEY,
+				servicecode TEXT,
+				jpsectionref TEXT,
+				routeref TEXT,
+				direction TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS operator;
+			""")
+		cur.execute("""
+			CREATE TABLE operator(
+				source TEXT,
+				operator_id TEXT PRIMARY KEY,
+				shortname TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS route;
+			""")
+		cur.execute("""
+			CREATE TABLE route(
+				source TEXT,
+				route_id TEXT PRIMARY KEY,
+				privatecode TEXT,
+				routesection TEXT,
+				description TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS routelink;
+			""")
+		cur.execute("""
+			CREATE TABLE routelink(
+				source TEXT,
+				routelink TEXT PRIMARY KEY,
+				routesection TEXT,
+				from_stoppoint TEXT,
+				to_stoppoint TEXT,
+				direction TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS stoppoint;
+			""")
+		cur.execute("""
+			CREATE TABLE stoppoint(
+				source TEXT,
+				stoppoint TEXT PRIMARY KEY,
+				name TEXT,
+				indicator TEXT,
+				locality_name TEXT,
+				locality_qualifier TEXT);
+			""")
 
 PARSERS = {
 	'Service': add_service,
@@ -300,7 +323,7 @@ def main():
 	args = parse_args()
 
 	if args.destroy_create_tables:
-		with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
+		with database() as conn:
 			create_tables(conn)
 
 	if args.process:
@@ -312,28 +335,26 @@ def process_zipfile(zip_filename):
 	with zipfile.ZipFile(zip_filename) as container:
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
-			with sqlite3.connect("data.sqlite3", isolation_level=None) as conn:
+			with database() as conn:
 				if not have_data_for_source(conn, source):
 					with container.open(contentname) as f:
 						try:
-							conn.execute("begin;")
 							process_xml_file(f, conn, source)
-							conn.execute("commit;")
 						except Exception:
 							logging.exception("Skipping file %s", source)
 
 
 def have_data_for_source(conn, source):
-	cur = conn.cursor()
-	cur.execute("select 1 from vehiclejourney where source = ? limit 1", (source,))
-	num_rows = len(list(cur))
-	if num_rows > 0:
-		return True
+	with conn.cursor() as cur:
+		cur.execute("select 1 from vehiclejourney where source = %s limit 1", (source,))
+		num_rows = len(list(cur))
+		if num_rows > 0:
+			return True
 
-	cur.execute("select 1 from service where source = ? limit 1", (source,))
-	num_rows = len(list(cur))
-	if num_rows > 0:
-		return True
+		cur.execute("select 1 from service where source = %s limit 1", (source,))
+		num_rows = len(list(cur))
+		if num_rows > 0:
+			return True
 
 	return False
 
