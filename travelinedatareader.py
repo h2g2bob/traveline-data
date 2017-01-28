@@ -325,6 +325,54 @@ def create_tables(conn):
 				locality_qualifier TEXT);
 			""")
 
+def drop_materialized_views(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			DROP MATERIALIZED VIEW IF EXISTS mv_vehiclejourney_per_hour;
+			""")
+
+def refresh_materialized_views(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			REFRESH MATERIALIZED VIEW mv_vehiclejourney_per_hour;
+			""")
+
+def create_materialized_views(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
+			SELECT
+				journeypattern,
+				line_id,
+				days_mask,
+				sum(case when deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
+				sum(case when deptime_seconds / 3600 = 1 then 1 else 0 end) as hour_1,
+				sum(case when deptime_seconds / 3600 = 2 then 1 else 0 end) as hour_2,
+				sum(case when deptime_seconds / 3600 = 3 then 1 else 0 end) as hour_3,
+				sum(case when deptime_seconds / 3600 = 4 then 1 else 0 end) as hour_4,
+				sum(case when deptime_seconds / 3600 = 5 then 1 else 0 end) as hour_5,
+				sum(case when deptime_seconds / 3600 = 6 then 1 else 0 end) as hour_6,
+				sum(case when deptime_seconds / 3600 = 7 then 1 else 0 end) as hour_7,
+				sum(case when deptime_seconds / 3600 = 8 then 1 else 0 end) as hour_8,
+				sum(case when deptime_seconds / 3600 = 9 then 1 else 0 end) as hour_9,
+				sum(case when deptime_seconds / 3600 = 10 then 1 else 0 end) as hour_10,
+				sum(case when deptime_seconds / 3600 = 11 then 1 else 0 end) as hour_11,
+				sum(case when deptime_seconds / 3600 = 12 then 1 else 0 end) as hour_12,
+				sum(case when deptime_seconds / 3600 = 13 then 1 else 0 end) as hour_13,
+				sum(case when deptime_seconds / 3600 = 14 then 1 else 0 end) as hour_14,
+				sum(case when deptime_seconds / 3600 = 15 then 1 else 0 end) as hour_15,
+				sum(case when deptime_seconds / 3600 = 16 then 1 else 0 end) as hour_16,
+				sum(case when deptime_seconds / 3600 = 17 then 1 else 0 end) as hour_17,
+				sum(case when deptime_seconds / 3600 = 18 then 1 else 0 end) as hour_18,
+				sum(case when deptime_seconds / 3600 = 19 then 1 else 0 end) as hour_19,
+				sum(case when deptime_seconds / 3600 = 20 then 1 else 0 end) as hour_20,
+				sum(case when deptime_seconds / 3600 = 21 then 1 else 0 end) as hour_21,
+				sum(case when deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
+				sum(case when deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
+			FROM vehiclejourney
+			GROUP BY 1,2,3;
+		""")
+
 PARSERS = {
 	'Service': add_service,
 	'VehicleJourney': add_vehiclejourney,
@@ -340,12 +388,18 @@ def main():
 
 	if args.destroy_create_tables:
 		with database() as conn:
+			drop_materialized_views(conn)
 			create_tables(conn)
+			create_materialized_views(conn)
 
 	if args.process:
 		for zip_filename in list_zip_filenames():
 			logging.info("Processing zip file %s...", zip_filename)
 			process_zipfile(zip_filename)
+
+	if args.matview:
+		with database() as conn:
+			refresh_materialized_views(conn)
 
 def process_zipfile(zip_filename):
 	with zipfile.ZipFile(zip_filename) as container:
@@ -379,6 +433,7 @@ def parse_args():
 	parser = argparse.ArgumentParser(prog='Process traveline data')
 	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
 	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
+	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
 
 	return parser.parse_args()
 
