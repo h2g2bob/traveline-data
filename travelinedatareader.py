@@ -25,7 +25,7 @@ import argparse
 # 	<VehicleJourney>
 
 # How many times per hour is a section of route (in one direction) served by a given service, on mondays?
-# sqlite> select lineref, jpref, deptime_seconds/3600 as hour, count(1) from vehiclejourney where days_mask & 1 group by 1,2,3 order by 4;
+# sqlite> select lineref, journeypattern, deptime_seconds/3600 as hour, count(1) from vehiclejourney where days_mask & 1 group by 1,2,3 order by 4;
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -79,14 +79,14 @@ def add_service(conn, elem, source):
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO journeypattern_service(source, jpref, servicecode, routeref, direction)
+				INSERT INTO journeypattern_service(source, journeypattern, servicecode, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
 			""", (source, jpref, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
 				cur.execute("""
-					INSERT INTO journeypattern_service_section(source, jpref, jpsectionref)
+					INSERT INTO journeypattern_service_section(source, journeypattern, jpsection)
 					VALUES (%s, %s, %s)
 					ON CONFLICT DO NOTHING
 				""", (source, jpref, jpsectionref))
@@ -103,7 +103,7 @@ def add_journeypatternsection(conn, elem, source):
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO jptiminglink(source, jptiminglink, jpsection, routelinkref, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				INSERT INTO jptiminglink(source, jptiminglink, jpsection, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
 			""", (source, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
@@ -153,7 +153,7 @@ def add_vehiclejourney(conn, elem, source):
 
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO vehiclejourney(source, vjcode, jpref, line_id, privatecode, days_mask, deptime, deptime_seconds)
+			INSERT INTO vehiclejourney(source, vjcode, journeypattern, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
 		""", (source, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
@@ -216,7 +216,7 @@ def create_tables(conn):
 				source TEXT,
 				jptiminglink TEXT PRIMARY KEY,
 				jpsection TEXT,
-				routelinkref TEXT,
+				routelink TEXT,
 				runtime TEXT,
 				from_sequence INT,
 				from_stoppoint TEXT,
@@ -230,7 +230,7 @@ def create_tables(conn):
 			CREATE TABLE vehiclejourney(
 				source TEXT,
 				vjcode TEXT PRIMARY KEY,
-				jpref TEXT,
+				journeypattern TEXT,
 				line_id TEXT,
 				privatecode TEXT,
 				days_mask INT,
@@ -265,9 +265,9 @@ def create_tables(conn):
 		cur.execute("""
 			CREATE TABLE journeypattern_service(
 				source TEXT,
-				jpref TEXT PRIMARY KEY,
+				journeypattern TEXT PRIMARY KEY,
 				servicecode TEXT,
-				routeref TEXT,
+				route TEXT,
 				direction TEXT);
 			""")
 		cur.execute("""
@@ -276,9 +276,9 @@ def create_tables(conn):
 		cur.execute("""
 			CREATE TABLE journeypattern_service_section(
 				source TEXT,
-				jpref TEXT,
-				jpsectionref TEXT,
-				PRIMARY KEY (jpref, jpsectionref));
+				journeypattern TEXT,
+				jpsection TEXT,
+				PRIMARY KEY (journeypattern, jpsection));
 			""")
 		cur.execute("""
 			DROP TABLE IF EXISTS operator;
