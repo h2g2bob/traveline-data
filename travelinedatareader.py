@@ -76,13 +76,20 @@ def add_service(conn, elem, source):
 		jpref = jpelem.get("id")
 		[direction] = jpelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
 		routeref = maybe_one(jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES))
-		[jpsectionref] = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)  # XXX this can have MANY items, for example in NW.zip/NW_04_HBC_X58_1.xml -- we would also need to edit print_mappings.py because we do vehiclejourney(perhour) to journeypattern_service using this link
+		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO journeypattern_service(source, jpref, servicecode, jpsectionref, routeref, direction)
-				VALUES (%s, %s, %s, %s, %s, %s)
+				INSERT INTO journeypattern_service(source, jpref, servicecode, routeref, direction)
+				VALUES (%s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source, jpref, servicecode, jpsectionref, routeref, direction))
+			""", (source, jpref, servicecode, routeref, direction))
+
+			for jpsectionref in jpsectionrefs:
+				cur.execute("""
+					INSERT INTO journeypattern_service_section(source, jpref, jpsectionref)
+					VALUES (%s, %s, %s)
+					ON CONFLICT DO NOTHING
+				""", (source, jpref, jpsectionref))
 
 def add_journeypatternsection(conn, elem, source):
 	jpsection_id = elem.get("id")
@@ -260,9 +267,18 @@ def create_tables(conn):
 				source TEXT,
 				jpref TEXT PRIMARY KEY,
 				servicecode TEXT,
-				jpsectionref TEXT,
 				routeref TEXT,
 				direction TEXT);
+			""")
+		cur.execute("""
+			DROP TABLE IF EXISTS journeypattern_service_section;
+			""")
+		cur.execute("""
+			CREATE TABLE journeypattern_service_section(
+				source TEXT,
+				jpref TEXT,
+				jpsectionref TEXT,
+				PRIMARY KEY (jpref, jpsectionref));
 			""")
 		cur.execute("""
 			DROP TABLE IF EXISTS operator;
