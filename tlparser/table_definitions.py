@@ -122,6 +122,9 @@ def create_tables(conn):
 			cur.execute(drop)
 		for _, create in TABLE_COMMANDS:
 			cur.execute(create)
+		cur.execute("""
+			CREATE INDEX idx_timing_section ON jptiminglink(jpsection);
+		""")
 
 def create_naptan_tables(conn):
 	with conn.cursor() as cur:
@@ -136,6 +139,16 @@ def create_naptan_tables(conn):
 				latitude REAL,
 				longitude REAL)
 		""")
+
+		# https://www.postgresql.org/docs/current/static/functions-geometry.html
+		# This query works along the lines of:
+		# travelinedata=> select * from naptan where point(latitude, longitude) <@ box(point(51.48, -2.51), point(51.49, -2.50));
+		cur.execute("""
+			CREATE INDEX idx_naptan_point
+			ON naptan
+			USING gist (point(latitude, longitude));
+		""")
+
 
 def drop_materialized_views(conn):
 	with conn.cursor() as cur:
