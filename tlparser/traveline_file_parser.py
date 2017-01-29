@@ -34,24 +34,25 @@ def process_zipfile(conn, zip_filename):
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
 			with conn as transaction_conn:
-				if not have_data_for_source(transaction_conn, source):
+				source_id = source_id_if_not_already_inserted(transaction_conn, source)
+				if source_id:
 					with container.open(contentname) as xmlfile:
 						try:
-							logging.info("Processing file %s", source)
-							process_xml_file(xmlfile, PARSERS, args=(transaction_conn, source))
+							logging.info("Processing file %s (%r)", source, source_id)
+							process_xml_file(xmlfile, PARSERS, args=(transaction_conn, source_id))
 						except Exception:
-							logging.exception("Skipping file %s", source)
+							logging.exception("Skipping file %s (%r)", source, source_id)
 
-def have_data_for_source(conn, source):
+def source_id_if_not_already_inserted(conn, source):
 	with conn.cursor() as cur:
-		cur.execute("select 1 from vehiclejourney where source = %s limit 1", (source,))
-		num_rows = len(list(cur))
-		if num_rows > 0:
-			return True
-
-		cur.execute("select 1 from service where source = %s limit 1", (source,))
-		num_rows = len(list(cur))
-		if num_rows > 0:
-			return True
-
-	return False
+		cur.execute("""
+			insert into source(source) values (%s)
+			on conflict do nothing
+			returning source_id
+			""", (source,))
+		rows = list(cur)
+		if len(rows) == 0:
+			return None
+		else:
+			[[source_id]] = rows
+			return source_id

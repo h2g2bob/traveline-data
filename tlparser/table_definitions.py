@@ -1,124 +1,127 @@
 #!/usr/bin/python3
 # encoding: utf8
 
+TABLE_COMMANDS = [
+	("""
+		DROP TABLE IF EXISTS source;
+		""", """
+		CREATE TABLE source(
+			source_id SERIAL PRIMARY KEY,
+			source TEXT UNIQUE)
+		"""),
+	("""
+		DROP TABLE IF EXISTS jptiminglink;
+		""", """
+		CREATE TABLE jptiminglink(
+			source_id INT REFERENCES source(source_id),
+			jptiminglink TEXT PRIMARY KEY,
+			jpsection TEXT,
+			routelink TEXT,
+			runtime TEXT,
+			from_sequence INT,
+			from_stoppoint TEXT,
+			to_sequence INT,
+			to_stoppoint TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS vehiclejourney;
+		""", """
+		CREATE TABLE vehiclejourney(
+			source_id INT REFERENCES source(source_id),
+			vjcode TEXT PRIMARY KEY,
+			journeypattern TEXT,
+			line_id TEXT,
+			privatecode TEXT,
+			days_mask INT,
+			deptime TEXT,
+			deptime_seconds INT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS service;
+		""", """
+		CREATE TABLE service(
+			source_id INT REFERENCES source(source_id),
+			servicecode TEXT PRIMARY KEY,
+			privatecode TEXT,
+			mode TEXT,
+			operator_id TEXT,
+			description TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS line;
+		""", """
+		CREATE TABLE line(
+			source_id INT REFERENCES source(source_id),
+			line_id TEXT PRIMARY KEY,
+			servicecode TEXT,
+			line_name TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS journeypattern_service;
+		""", """
+		CREATE TABLE journeypattern_service(
+			source_id INT REFERENCES source(source_id),
+			journeypattern TEXT PRIMARY KEY,
+			servicecode TEXT,
+			route TEXT,
+			direction TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS journeypattern_service_section;
+		""", """
+		CREATE TABLE journeypattern_service_section(
+			source_id INT REFERENCES source(source_id),
+			journeypattern TEXT,
+			jpsection TEXT,
+			PRIMARY KEY (journeypattern, jpsection));
+		"""),
+	("""
+		DROP TABLE IF EXISTS operator;
+		""", """
+		CREATE TABLE operator(
+			source_id INT REFERENCES source(source_id),
+			operator_id TEXT PRIMARY KEY,
+			shortname TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS route;
+		""", """
+		CREATE TABLE route(
+			source_id INT REFERENCES source(source_id),
+			route_id TEXT PRIMARY KEY,
+			privatecode TEXT,
+			routesection TEXT,
+			description TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS routelink;
+		""", """
+		CREATE TABLE routelink(
+			source_id INT REFERENCES source(source_id),
+			routelink TEXT PRIMARY KEY,
+			routesection TEXT,
+			from_stoppoint TEXT,
+			to_stoppoint TEXT,
+			direction TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS stoppoint;
+		""", """
+		CREATE TABLE stoppoint(
+			source_id INT REFERENCES source(source_id),
+			stoppoint TEXT PRIMARY KEY,
+			name TEXT,
+			indicator TEXT,
+			locality_name TEXT,
+			locality_qualifier TEXT);
+		""")]
+
 def create_tables(conn):
 	with conn.cursor() as cur:
-		cur.execute("""
-			DROP TABLE IF EXISTS jptiminglink;
-			""")
-		cur.execute("""
-			CREATE TABLE jptiminglink(
-				source TEXT,
-				jptiminglink TEXT PRIMARY KEY,
-				jpsection TEXT,
-				routelink TEXT,
-				runtime TEXT,
-				from_sequence INT,
-				from_stoppoint TEXT,
-				to_sequence INT,
-				to_stoppoint TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS vehiclejourney;
-			""")
-		cur.execute("""
-			CREATE TABLE vehiclejourney(
-				source TEXT,
-				vjcode TEXT PRIMARY KEY,
-				journeypattern TEXT,
-				line_id TEXT,
-				privatecode TEXT,
-				days_mask INT,
-				deptime TEXT,
-				deptime_seconds INT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS service;
-			""")
-		cur.execute("""
-			CREATE TABLE service(
-				source TEXT,
-				servicecode TEXT PRIMARY KEY,
-				privatecode TEXT,
-				mode TEXT,
-				operator_id TEXT,
-				description TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS line;
-			""")
-		cur.execute("""
-			CREATE TABLE line(
-				source TEXT,
-				line_id TEXT PRIMARY KEY,
-				servicecode TEXT,
-				line_name TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS journeypattern_service;
-			""")
-		cur.execute("""
-			CREATE TABLE journeypattern_service(
-				source TEXT,
-				journeypattern TEXT PRIMARY KEY,
-				servicecode TEXT,
-				route TEXT,
-				direction TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS journeypattern_service_section;
-			""")
-		cur.execute("""
-			CREATE TABLE journeypattern_service_section(
-				source TEXT,
-				journeypattern TEXT,
-				jpsection TEXT,
-				PRIMARY KEY (journeypattern, jpsection));
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS operator;
-			""")
-		cur.execute("""
-			CREATE TABLE operator(
-				source TEXT,
-				operator_id TEXT PRIMARY KEY,
-				shortname TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS route;
-			""")
-		cur.execute("""
-			CREATE TABLE route(
-				source TEXT,
-				route_id TEXT PRIMARY KEY,
-				privatecode TEXT,
-				routesection TEXT,
-				description TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS routelink;
-			""")
-		cur.execute("""
-			CREATE TABLE routelink(
-				source TEXT,
-				routelink TEXT PRIMARY KEY,
-				routesection TEXT,
-				from_stoppoint TEXT,
-				to_stoppoint TEXT,
-				direction TEXT);
-			""")
-		cur.execute("""
-			DROP TABLE IF EXISTS stoppoint;
-			""")
-		cur.execute("""
-			CREATE TABLE stoppoint(
-				source TEXT,
-				stoppoint TEXT PRIMARY KEY,
-				name TEXT,
-				indicator TEXT,
-				locality_name TEXT,
-				locality_qualifier TEXT);
-			""")
+		for drop, _ in reversed(TABLE_COMMANDS):
+			cur.execute(drop)
+		for _, create in TABLE_COMMANDS:
+			cur.execute(create)
 
 def drop_materialized_views(conn):
 	with conn.cursor() as cur:

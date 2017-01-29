@@ -14,18 +14,18 @@ def maybe_one(many):
 		return None
 	raise ValueError(many)
 
-def add_operator(elem, conn, source):
+def add_operator(elem, conn, source_id):
 	operator_id = elem.get("id")
 	[shortname] = elem.xpath("./tx:OperatorShortName/text()", namespaces=NAMESPACES)
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO operator(source, operator_id, shortname)
+			INSERT INTO operator(source_id, operator_id, shortname)
 			VALUES (%s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source, operator_id, shortname,))
+		""", (source_id, operator_id, shortname,))
 
 
-def add_service(elem, conn, source):
+def add_service(elem, conn, source_id):
 	[servicecode] = elem.xpath("./tx:ServiceCode/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	mode = maybe_one(elem.xpath("./tx:Mode/text()", namespaces=NAMESPACES))
@@ -34,19 +34,19 @@ def add_service(elem, conn, source):
 
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO service(source, servicecode, privatecode, mode, operator_id, description)
+			INSERT INTO service(source_id, servicecode, privatecode, mode, operator_id, description)
 			VALUES (%s, %s, %s, %s, %s, %s)
-		""", (source, servicecode, privatecode, mode, operator, description))
+		""", (source_id, servicecode, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
 		line_id = lineelem.get("id")
 		[line_name] = lineelem.xpath("./tx:LineName/text()", namespaces=NAMESPACES)	
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO line(source, line_id, servicecode, line_name)
+				INSERT INTO line(source_id, line_id, servicecode, line_name)
 				VALUES (%s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source, line_id, servicecode, line_name))
+			""", (source_id, line_id, servicecode, line_name))
 
 	for jpelem in elem.xpath("./tx:StandardService/tx:JourneyPattern", namespaces=NAMESPACES):
 		jpref = jpelem.get("id")
@@ -55,19 +55,19 @@ def add_service(elem, conn, source):
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO journeypattern_service(source, journeypattern, servicecode, route, direction)
+				INSERT INTO journeypattern_service(source_id, journeypattern, servicecode, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source, jpref, servicecode, routeref, direction))
+			""", (source_id, jpref, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
 				cur.execute("""
-					INSERT INTO journeypattern_service_section(source, journeypattern, jpsection)
+					INSERT INTO journeypattern_service_section(source_id, journeypattern, jpsection)
 					VALUES (%s, %s, %s)
 					ON CONFLICT DO NOTHING
-				""", (source, jpref, jpsectionref))
+				""", (source_id, jpref, jpsectionref))
 
-def add_journeypatternsection(elem, conn, source):
+def add_journeypatternsection(elem, conn, source_id):
 	jpsection_id = elem.get("id")
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
 		jptiminglink_id = jptl.get("id")
@@ -79,12 +79,12 @@ def add_journeypatternsection(elem, conn, source):
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO jptiminglink(source, jptiminglink, jpsection, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				INSERT INTO jptiminglink(source_id, jptiminglink, jpsection, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+			""", (source_id, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
-def add_vehiclejourney(elem, conn, source):
+def add_vehiclejourney(elem, conn, source_id):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 	jpref_id = maybe_one(elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES))
 	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
@@ -129,12 +129,12 @@ def add_vehiclejourney(elem, conn, source):
 
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO vehiclejourney(source, vjcode, journeypattern, line_id, privatecode, days_mask, deptime, deptime_seconds)
+			INSERT INTO vehiclejourney(source_id, vjcode, journeypattern, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
+		""", (source_id, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
-def add_route(elem, conn, source):
+def add_route(elem, conn, source_id):
 	route_id = elem.get("id")
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
@@ -142,12 +142,12 @@ def add_route(elem, conn, source):
 
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO route(source, route_id, privatecode, routesection, description)
+			INSERT INTO route(source_id, route_id, privatecode, routesection, description)
 			VALUES (%s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source, route_id, privatecode, routesection, description,))
+		""", (source_id, route_id, privatecode, routesection, description,))
 
-def add_routesection(elem, conn, source):
+def add_routesection(elem, conn, source_id):
 	routesection = elem.get("id")
 	for linkelem in elem.xpath("./tx:RouteLink", namespaces=NAMESPACES):
 		routelink = linkelem.get("id")
@@ -157,12 +157,12 @@ def add_routesection(elem, conn, source):
 
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO routelink(source, routelink, routesection, from_stoppoint, to_stoppoint, direction)
+				INSERT INTO routelink(source_id, routelink, routesection, from_stoppoint, to_stoppoint, direction)
 				VALUES (%s, %s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
+			""", (source_id, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
 
-def add_stoppoint(elem, conn, source):
+def add_stoppoint(elem, conn, source_id):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
 	[name] = elem.xpath("./tx:CommonName/text()", namespaces=NAMESPACES)
 	indicator = maybe_one(elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES))
@@ -170,7 +170,7 @@ def add_stoppoint(elem, conn, source):
 	locality_qualifier = maybe_one(elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES))
 	with conn.cursor() as cur:
 		cur.execute("""
-			INSERT INTO stoppoint(source, stoppoint, name, indicator, locality_name, locality_qualifier)
+			INSERT INTO stoppoint(source_id, stoppoint, name, indicator, locality_name, locality_qualifier)
 			VALUES (%s, %s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source, stoppoint, name, indicator, locality_name, locality_qualifier,))
+		""", (source_id, stoppoint, name, indicator, locality_name, locality_qualifier,))
