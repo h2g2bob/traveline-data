@@ -36,6 +36,7 @@ def add_service(elem, conn, source_id):
 		cur.execute("""
 			INSERT INTO service(source_id, servicecode, privatecode, mode, operator_id, description)
 			VALUES (%s, %s, %s, %s, %s, %s)
+			ON CONFLICT DO NOTHING
 		""", (source_id, servicecode, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
