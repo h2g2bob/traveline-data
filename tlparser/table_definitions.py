@@ -130,8 +130,8 @@ def create_naptan_tables(conn):
 		""")
 		cur.execute("""
 			CREATE TABLE naptan (
-				code TEXT PRIMARY KEY,
-				atcocode TEXT UNIQUE,
+				atcocode TEXT PRIMARY KEY,
+				code TEXT UNIQUE,
 				name TEXT,
 				latitude REAL,
 				longitude REAL)
