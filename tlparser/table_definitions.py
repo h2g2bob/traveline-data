@@ -123,6 +123,20 @@ def create_tables(conn):
 		for _, create in TABLE_COMMANDS:
 			cur.execute(create)
 
+def create_naptan_tables(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			DROP TABLE IF EXISTS naptan;
+		""")
+		cur.execute("""
+			CREATE TABLE naptan (
+				code TEXT PRIMARY KEY,
+				atcocode TEXT UNIQUE,
+				name TEXT,
+				latitude REAL,
+				longitude REAL)
+		""")
+
 def drop_materialized_views(conn):
 	with conn.cursor() as cur:
 		cur.execute("""

@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 from lxml import etree
 import zipfile
-import sqlite3
 import logging
 
 # Appears to be:
@@ -10,30 +9,13 @@ import logging
 #		<StopPoint>
 
 
-def main():
-	with sqlite3.connect("data.sqlite3", isolation_level="DEFERRED") as conn:
-		create_tables(conn)
-		add_data_to_table(conn)
-
-def create_tables(conn):
-	conn.execute("""
-		DROP TABLE IF EXISTS naptan;
-	""")
-	conn.execute("""
-		CREATE TABLE naptan (
-			code TEXT PRIMARY KEY,
-			atcocode TEXT UNIQUE,
-			name TEXT,
-			latitude REAL,
-			longitude REAL)
-	""")
-
-def add_data_to_table(conn):
-	for code, atcocode, name, latitude, longitude in get_datapoints_from_xml():
-		conn.execute("""
-			INSERT INTO naptan (code, atcocode, name, latitude, longitude)
-			VALUES (?, ?, ?, ?, ?);
-		""", (code, atcocode, name, latitude, longitude,))
+def process_all_files(conn):
+	with conn.cursor() as cur:
+		for code, atcocode, name, latitude, longitude in get_datapoints_from_xml():
+			cur.execute("""
+				INSERT INTO naptan (code, atcocode, name, latitude, longitude)
+				VALUES (%s, %s, %s, %s, %s);
+			""", (code, atcocode, name, latitude, longitude,))
 
 def get_datapoints_from_xml():
 	with zipfile.ZipFile("naptan/NaPTANxml.zip") as container:
@@ -66,7 +48,7 @@ def float_content(elem, path):
 	elif len(values) == 0:
 		return None
 	else:
-		logging.info("float_content: %r", values)
+		logging.debug("file contains multiple values for location, averaging: %r", values)
 		return sum(float(x) for x in values) / len(values)
 
 def text_content(elem, path):
