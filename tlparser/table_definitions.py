@@ -29,7 +29,7 @@ TABLE_COMMANDS = [
 		CREATE TABLE vehiclejourney(
 			source_id INT REFERENCES source(source_id),
 			vjcode TEXT PRIMARY KEY,
-			journeypattern TEXT,
+			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
 			line_id TEXT,
 			privatecode TEXT,
 			days_mask INT,
@@ -61,7 +61,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE journeypattern_service(
 			source_id INT REFERENCES source(source_id),
-			journeypattern TEXT PRIMARY KEY,
+			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
 			servicecode TEXT,
 			route TEXT,
 			direction TEXT);
@@ -71,9 +71,9 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE journeypattern_service_section(
 			source_id INT REFERENCES source(source_id),
-			journeypattern TEXT,
+			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
 			jpsection TEXT,
-			PRIMARY KEY (journeypattern, jpsection));
+			PRIMARY KEY (journeypattern_id, jpsection));
 		"""),
 	("""
 		DROP TABLE IF EXISTS operator;
@@ -126,6 +126,14 @@ def create_tables(conn):
 			CREATE INDEX idx_timing_section ON jptiminglink(jpsection);
 		""")
 
+def create_intern_tables(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			CREATE TABLE journeypattern_intern (
+				journeypattern_id SERIAL PRIMARY KEY,
+				journeypattern TEXT UNIQUE)
+		""")
+
 def create_naptan_tables(conn):
 	with conn.cursor() as cur:
 		cur.execute("""
@@ -167,7 +175,7 @@ def create_materialized_views(conn):
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
-				journeypattern,
+				journeypattern_id,
 				line_id,
 				days_mask,
 				sum(case when deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
@@ -197,3 +205,21 @@ def create_materialized_views(conn):
 			FROM vehiclejourney
 			GROUP BY 1,2,3;
 		""")
+
+def interned_journeypattern(conn, journeypattern):
+	with conn.cursor() as cur:
+		cur.execute("""
+			SELECT journeypattern_id
+			FROM journeypattern_intern
+			WHERE journeypattern = %s
+		""", (journeypattern,))
+		rows = list(cur)
+		if len(rows) == 0:
+			cur.execute("""
+				INSERT INTO journeypattern_intern(journeypattern)
+				VALUES (%s)
+				RETURNING journeypattern_id
+			""", (journeypattern,))
+			rows = list(cur)
+		[[jp_id]] = rows
+		return jp_id

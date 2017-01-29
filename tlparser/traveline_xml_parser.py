@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+from .table_definitions import interned_journeypattern
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -55,18 +56,19 @@ def add_service(elem, conn, source_id):
 		routeref = maybe_one(jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES))
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
+			jpintern = interned_journeypattern(conn, jpref)
 			cur.execute("""
-				INSERT INTO journeypattern_service(source_id, journeypattern, servicecode, route, direction)
+				INSERT INTO journeypattern_service(source_id, journeypattern_id, servicecode, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source_id, jpref, servicecode, routeref, direction))
+			""", (source_id, jpintern, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
 				cur.execute("""
-					INSERT INTO journeypattern_service_section(source_id, journeypattern, jpsection)
+					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection)
 					VALUES (%s, %s, %s)
 					ON CONFLICT DO NOTHING
-				""", (source_id, jpref, jpsectionref))
+				""", (source_id, jpintern, jpsectionref))
 
 def add_journeypatternsection(elem, conn, source_id):
 	jpsection_id = elem.get("id")
@@ -129,11 +131,12 @@ def add_vehiclejourney(elem, conn, source_id):
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
 	with conn.cursor() as cur:
+		jpintern = interned_journeypattern(conn, jpref_id)
 		cur.execute("""
-			INSERT INTO vehiclejourney(source_id, vjcode, journeypattern, line_id, privatecode, days_mask, deptime, deptime_seconds)
+			INSERT INTO vehiclejourney(source_id, vjcode, journeypattern_id, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source_id, vjcode_id, jpref_id, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
+		""", (source_id, vjcode_id, jpintern, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
 def add_route(elem, conn, source_id):
 	route_id = elem.get("id")
