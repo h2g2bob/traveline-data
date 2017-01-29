@@ -5,7 +5,6 @@ import os
 import zipfile
 
 from .xmlparser import process_xml_file
-from .table_definitions import database # XXX
 from .traveline_xml_parser import add_service, add_vehiclejourney, add_journeypatternsection, add_operator, add_stoppoint, add_routesection, add_route
 
 
@@ -19,10 +18,10 @@ PARSERS = {
 	'Route': add_route,
 }
 
-def process_all_files():
+def process_all_files(conn):
 	for zip_filename in list_zip_filenames():
 		logging.info("Processing zip file %s...", zip_filename)
-		process_zipfile(zip_filename)
+		process_zipfile(conn, zip_filename)
 
 def list_zip_filenames():
 	return [
@@ -30,16 +29,16 @@ def list_zip_filenames():
 		for name in os.listdir("travelinedata/")
 		if name.endswith(".zip")]
 
-def process_zipfile(zip_filename):
+def process_zipfile(conn, zip_filename):
 	with zipfile.ZipFile(zip_filename) as container:
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
-			with database() as conn:
-				if not have_data_for_source(conn, source):
+			with conn as transaction_conn:
+				if not have_data_for_source(transaction_conn, source):
 					with container.open(contentname) as xmlfile:
 						try:
 							logging.info("Processing file %s", source)
-							process_xml_file(xmlfile, PARSERS, args=(conn, source))
+							process_xml_file(xmlfile, PARSERS, args=(transaction_conn, source))
 						except Exception:
 							logging.exception("Skipping file %s", source)
 

@@ -1,12 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf8
 
-import psycopg2
-
-def database():
-	return psycopg2.connect("dbname=travelinedata") # XXX should be in __main__ and passed around?
-
-
 def create_tables(conn):
 	with conn.cursor() as cur:
 		cur.execute("""

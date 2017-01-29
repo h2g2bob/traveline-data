@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 import argparse
+import psycopg2
 import logging
 
-from .table_definitions import database, create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
+from .table_definitions import create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
 from .traveline_file_parser import process_all_files
 
 # Appears to be:
@@ -29,16 +30,17 @@ def main():
 	args = parse_args()
 
 	if args.destroy_create_tables:
-		with database() as conn:
+		with psycopg2.connect(args.database) as conn:
 			drop_materialized_views(conn)
 			create_tables(conn)
 			create_materialized_views(conn)
 
 	if args.process:
-		process_all_files()
+		conn = psycopg2.connect(args.database)
+		process_all_files(conn)
 
 	if args.matview:
-		with database() as conn:
+		with psycopg2.connect(args.database) as conn:
 			refresh_materialized_views(conn)
 
 
@@ -50,6 +52,7 @@ def parse_args():
 	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
 	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
 	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
+	parser.add_argument('--database', help='databse location', default="dbname=travelinedata")
 
 	return parser.parse_args()
 
