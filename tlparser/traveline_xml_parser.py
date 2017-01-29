@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern
+from .table_definitions import interned_journeypattern, interned_jpsection
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -64,14 +64,18 @@ def add_service(elem, conn, source_id):
 			""", (source_id, jpintern, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
+				jpsectionintern = interned_jpsection(conn, jpsectionref)
 				cur.execute("""
-					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection)
+					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection_id)
 					VALUES (%s, %s, %s)
 					ON CONFLICT DO NOTHING
-				""", (source_id, jpintern, jpsectionref))
+				""", (source_id, jpintern, jpsectionintern))
 
 def add_journeypatternsection(elem, conn, source_id):
-	jpsection_id = elem.get("id")
+	jpsection = elem.get("id")
+	with conn.cursor() as cur:
+		jpsectionintern = interned_jpsection(conn, jpsection)
+
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
 		jptiminglink_id = jptl.get("id")
 		routelinkref_id = maybe_one(jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES))
@@ -82,10 +86,10 @@ def add_journeypatternsection(elem, conn, source_id):
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			cur.execute("""
-				INSERT INTO jptiminglink(source_id, jptiminglink, jpsection, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				INSERT INTO jptiminglink(source_id, jptiminglink, jpsection_id, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 				ON CONFLICT DO NOTHING
-			""", (source_id, jptiminglink_id, jpsection_id, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+			""", (source_id, jptiminglink_id, jpsectionintern, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
 def add_vehiclejourney(elem, conn, source_id):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)

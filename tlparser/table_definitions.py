@@ -15,7 +15,7 @@ TABLE_COMMANDS = [
 		CREATE TABLE jptiminglink(
 			source_id INT REFERENCES source(source_id),
 			jptiminglink TEXT PRIMARY KEY,
-			jpsection TEXT,
+			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
 			routelink TEXT,
 			runtime TEXT,
 			from_sequence INT,
@@ -72,8 +72,8 @@ TABLE_COMMANDS = [
 		CREATE TABLE journeypattern_service_section(
 			source_id INT REFERENCES source(source_id),
 			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			jpsection TEXT,
-			PRIMARY KEY (journeypattern_id, jpsection));
+			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
+			PRIMARY KEY (journeypattern_id, jpsection_id));
 		"""),
 	("""
 		DROP TABLE IF EXISTS operator;
@@ -123,15 +123,7 @@ def create_tables(conn):
 		for _, create in TABLE_COMMANDS:
 			cur.execute(create)
 		cur.execute("""
-			CREATE INDEX idx_timing_section ON jptiminglink(jpsection);
-		""")
-
-def create_intern_tables(conn):
-	with conn.cursor() as cur:
-		cur.execute("""
-			CREATE TABLE journeypattern_intern (
-				journeypattern_id SERIAL PRIMARY KEY,
-				journeypattern TEXT UNIQUE)
+			CREATE INDEX idx_timing_section ON jptiminglink(jpsection_id);
 		""")
 
 def create_naptan_tables(conn):
@@ -206,6 +198,19 @@ def create_materialized_views(conn):
 			GROUP BY 1,2,3;
 		""")
 
+def create_intern_tables(conn):
+	with conn.cursor() as cur:
+		cur.execute("""
+			CREATE TABLE IF NOT EXISTS journeypattern_intern (
+				journeypattern_id SERIAL PRIMARY KEY,
+				journeypattern TEXT UNIQUE)
+		""")
+		cur.execute("""
+			CREATE TABLE IF NOT EXISTS jpsection_intern (
+				jpsection_id SERIAL PRIMARY KEY,
+				jpsection TEXT UNIQUE)
+		""")
+
 def interned_journeypattern(conn, journeypattern):
 	with conn.cursor() as cur:
 		cur.execute("""
@@ -220,6 +225,24 @@ def interned_journeypattern(conn, journeypattern):
 				VALUES (%s)
 				RETURNING journeypattern_id
 			""", (journeypattern,))
+			rows = list(cur)
+		[[jp_id]] = rows
+		return jp_id
+
+def interned_jpsection(conn, jpsection):
+	with conn.cursor() as cur:
+		cur.execute("""
+			SELECT jpsection_id
+			FROM jpsection_intern
+			WHERE jpsection = %s
+		""", (jpsection,))
+		rows = list(cur)
+		if len(rows) == 0:
+			cur.execute("""
+				INSERT INTO jpsection_intern(jpsection)
+				VALUES (%s)
+				RETURNING jpsection_id
+			""", (jpsection,))
 			rows = list(cur)
 		[[jp_id]] = rows
 		return jp_id
