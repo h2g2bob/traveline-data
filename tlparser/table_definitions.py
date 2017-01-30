@@ -222,7 +222,7 @@ def create_materialized_views(conn):
 			GROUP BY 1;
 		""")
 		cur.execute("""
-			CREATE INDEX idx_bus_stop_pair_frequency
+			CREATE INDEX idx_journeypattern_bounding_box
 			ON mv_journeypattern_bounding_box
 			USING gist (bounding_box);
 		""")
