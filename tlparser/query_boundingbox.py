@@ -48,13 +48,13 @@ def line_segments_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_
 		return [{
 			"from": {
 				"id": from_id,
-				"lat": from_lat,
-				"lng": from_lng},
+				"lat": float(from_lat),
+				"lng": float(from_lng)},
 			"to": {
 				"id": to_id,
-				"lat": to_lat,
-				"lng": to_lng},
-			"frequency": frequency,
+				"lat": float(to_lat),
+				"lng": float(to_lng)},
+			"frequency": int(frequency),
 			"line_names": line_names}
 			for (from_id, from_lat, from_lng, to_id, to_lat, to_lng, frequency, line_names)
 			in cur]
