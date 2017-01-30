@@ -30,7 +30,7 @@ def add_service(elem, conn, source_id):
 	[servicecode] = elem.xpath("./tx:ServiceCode/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	mode = maybe_one(elem.xpath("./tx:Mode/text()", namespaces=NAMESPACES))
-	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
+	description = maybe_one(elem.xpath("./tx:Description/text()", namespaces=NAMESPACES))
 	[operator] = elem.xpath("./tx:RegisteredOperatorRef/text()", namespaces=NAMESPACES)
 
 	with conn.cursor() as cur:
