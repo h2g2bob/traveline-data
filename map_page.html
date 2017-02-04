@@ -33,22 +33,23 @@ svg path {
 </style>
 <script type="application/javascript">
 
+var tlglobals = {
+	zoom: 2000,
+	lng: -2.530,
+	lat: 51.750
+}
+
 function scale(value) {
 	/*
 	you might think this is possible from transform=scale(1000) and
 	stroke-width: 0.001px, but this only makes either invisible or
 	thick lines
 	*/
-	return value * 2000;
+	return value * tlglobals.zoom;
 }
 
 function descale(value) {
-	return value / 2000;
-}
-
-function pan_to_location(lng, lat) {
-	var svg = document.getElementById("map_paint_area");
-	svg.setAttribute("transform", "translate(" + scale(lng) + "," + scale(lat) + ")");
+	return value / tlglobals.zoom;
 }
 
 function path_description(data, pair) {
@@ -76,15 +77,19 @@ function map_paint(data) {
 	});
 }
 
+function set_pan_location() {
+	var svg = document.getElementById("map_paint_area");
+	svg.setAttribute("transform", "translate(" + scale(-tlglobals.lng) + "," + scale(-tlglobals.lat) + ")");
+}
+
 function fetch_data_and_repaint() {
+	set_pan_location();
+
 	var map_container = document.getElementById("map_paint_container");
-	var lat = 51.750;
-	var lng = -2.530;
-	var url = "/json/?lat=" + lat + "&lng=" + lng + "&width=" + descale(map_container.offsetWidth) + "&height=" + descale(map_paint_container.offsetHeight);
+	var url = "/json/?lat=" + tlglobals.lat + "&lng=" + tlglobals.lng + "&width=" + descale(map_container.offsetWidth) + "&height=" + descale(map_paint_container.offsetHeight);
 
 	var callback = function () {
 		if (xmlhttpreq.readyState == 4) {
-			pan_to_location(-lng, -lat);
 			map_paint(JSON.parse(xmlhttpreq.responseText));
 		}
 	};
@@ -95,9 +100,49 @@ function fetch_data_and_repaint() {
 	xmlhttpreq.send();
 }
 
+function clear_canvas() {
+	var svg = document.getElementById("map_paint_area");
+	for (var child=svg.firstChild; child !== null; child=svg.firstChild) {
+		svg.removeChild(child);
+	}
+}
 
-window.addEventListener("load", fetch_data_and_repaint);
-window.addEventListener("resize", fetch_data_and_repaint);
+window.addEventListener("load", function () {
+	fetch_data_and_repaint();
+});
+window.addEventListener("resize", function () {
+	fetch_data_and_repaint();
+});
+window.addEventListener("keyup", function (event) {
+	switch (event.key) {
+		case "q":
+			tlglobals.zoom *= 1.1;
+			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+			fetch_data_and_repaint();
+			break;
+		case "e":
+			tlglobals.zoom /= 1.1;
+			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+			fetch_data_and_repaint();
+			break;
+		case "w":
+			tlglobals.lat -= 20/tlglobals.zoom;
+			fetch_data_and_repaint();
+			break;
+		case "s":
+			tlglobals.lat += 20/tlglobals.zoom;
+			fetch_data_and_repaint();
+			break;
+		case "a":
+			tlglobals.lng -= 20/tlglobals.zoom;
+			fetch_data_and_repaint();
+			break;
+		case "d":
+			tlglobals.lng += 20/tlglobals.zoom;
+			fetch_data_and_repaint();
+			break;
+	}
+});
 
 </script>
 </head>

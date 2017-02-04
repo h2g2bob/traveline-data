@@ -17,7 +17,7 @@ def database():
 def boundingbox_from_request():
 	height = float(request.args['height'])
 	width = float(request.args['width'])
-	if width * height > 5:
+	if width * height > 0.25:
 		raise ValueError("Area too large (forbidden)")
 	return (
 		float(request.args['lat']),
