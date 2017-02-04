@@ -15,11 +15,15 @@ def database():
 	return psycopg2.connect("dbname=travelinedata")
 
 def boundingbox_from_request():
+	height = float(request.args['height'])
+	width = float(request.args['width'])
+	if width * height > 5:
+		raise ValueError("Area too large (forbidden)")
 	return (
 		float(request.args['lat']),
 		float(request.args['lng']),
-		float(request.args['lat']) + float(request.args['height']),
-		float(request.args['lng']) + float(request.args['width']))
+		float(request.args['lat']) + height,
+		float(request.args['lng']) + width)
 
 @app.route('/')
 def map_page():

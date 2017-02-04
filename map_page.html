@@ -1,4 +1,15 @@
-<style>
+<!DOCTYPE html>
+<html>
+<head>
+<!--
+- let this repaint on window resize (ie: give ids to paths and check they don't already exist
+- factor out hard-coded lat/lng/zoom
+- color lines by frequency
+- make curvy lines
+- hook up some panning / scrolling mechanism
+-->
+<title>Bus routes</title>
+<style type="text/css">
 svg path {
 	fill: black;
 	fill-opacity: 1;
@@ -6,11 +17,17 @@ svg path {
 	stroke-opacity: 1;
 	stroke-width: 1px;
 }
+
+.fullscreen {
+	height: 100vh;
+	width: 100vw;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+}
+
 </style>
-<div id="map_paint_container" style="width: 100%; height: 100%"><svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
-	<g id="map_paint_area">
-	</g>
-</svg></div>
 <script type="application/javascript">
 
 function scale(value) {
@@ -19,11 +36,11 @@ function scale(value) {
 	stroke-width: 0.001px, but this only makes either invisible or
 	thick lines
 	*/
-	return value * 1000;
+	return value * 2000;
 }
 
 function descale(value) {
-	return value / 1000;
+	return value / 2000;
 }
 
 function pan_to_location(lng, lat) {
@@ -71,6 +88,14 @@ function fetch_data_and_repaint() {
 	xmlhttpreq.send();
 }
 
+
 window.addEventListener("load", fetch_data_and_repaint);
 
 </script>
+</head>
+<body class="fullscreen">
+<div id="map_paint_container" class="fullscreen"><svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+	<g id="map_paint_area">
+	</g>
+</svg></div>
+</body>
