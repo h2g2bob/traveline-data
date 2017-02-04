@@ -1,0 +1,53 @@
+<style>
+svg path {
+	fill: black;
+	fill-opacity: 1;
+	stroke: black;
+	stroke-opacity: 1;
+	stroke-width: 1px;
+}
+</style>
+<svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+	<g id="map_paint_area">
+	</g>
+</svg>
+<script type="application/javascript">
+
+function scale(value) {
+	/*
+	you might think this is possible from transform=scale(1000) and
+	stroke-width: 0.001px, but this only makes either invisible or
+	thick lines
+	*/
+	return value * 1000;
+}
+
+function pan_to_location(lng, lat) {
+	var svg = document.getElementById("map_paint_area");
+	svg.setAttribute("transform", "translate(" + scale(lng) + "," + scale(lat) + ")");
+}
+
+function path_description(data, pair) {
+	var from_stop = data["stops"][pair["from"]];
+	var to_stop = data["stops"][pair["to"]];
+	if (from_stop === undefined || to_stop === undefined) {
+		return null;
+	}
+	return "M " + scale(from_stop["lng"]) + " " + scale(from_stop["lat"]) + " L " + scale(to_stop["lng"]) + " " + scale(to_stop["lat"]);
+}
+
+function map_paint(data) {
+	pan_to_location(2.530, -51.750);
+
+	var svg = document.getElementById("map_paint_area");
+	data["pairs"].forEach(function (pair) {
+		var path_desc = path_description(data, pair);
+		if (path_desc !== null) {
+			var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+			path.setAttribute("d", path_desc);
+			svg.appendChild(path);
+		}
+	});
+}
+</script>
+<script type="application/javascript" src="/json/"></script>
