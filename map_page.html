@@ -7,10 +7,10 @@ svg path {
 	stroke-width: 1px;
 }
 </style>
-<svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+<div id="map_paint_container" style="width: 100%; height: 100%"><svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
 	<g id="map_paint_area">
 	</g>
-</svg>
+</svg></div>
 <script type="application/javascript">
 
 function scale(value) {
@@ -20,6 +20,10 @@ function scale(value) {
 	thick lines
 	*/
 	return value * 1000;
+}
+
+function descale(value) {
+	return value / 1000;
 }
 
 function pan_to_location(lng, lat) {
@@ -37,8 +41,6 @@ function path_description(data, pair) {
 }
 
 function map_paint(data) {
-	pan_to_location(2.530, -51.750);
-
 	var svg = document.getElementById("map_paint_area");
 	data["pairs"].forEach(function (pair) {
 		var path_desc = path_description(data, pair);
@@ -49,5 +51,26 @@ function map_paint(data) {
 		}
 	});
 }
+
+function fetch_data_and_repaint() {
+	var map_container = document.getElementById("map_paint_container");
+	var lat = 51.750;
+	var lng = -2.530;
+	var url = "/json/?lat=" + lat + "&lng=" + lng + "&width=" + descale(map_container.offsetWidth) + "&height=" + descale(map_paint_container.offsetHeight);
+
+	var callback = function () {
+		if (xmlhttpreq.readyState == 4) {
+			pan_to_location(-lng, -lat);
+			map_paint(JSON.parse(xmlhttpreq.responseText));
+		}
+	};
+
+	var xmlhttpreq = new XMLHttpRequest();
+	xmlhttpreq.addEventListener("load", callback);
+	xmlhttpreq.open("GET", url);
+	xmlhttpreq.send();
+}
+
+window.addEventListener("load", fetch_data_and_repaint);
+
 </script>
-<script type="application/javascript" src="/json/"></script>

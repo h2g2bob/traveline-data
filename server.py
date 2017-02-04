@@ -4,15 +4,22 @@
 from tlparser.query_boundingbox import line_segments_in_boundingbox, line_segments_and_stops_in_boundingbox
 import psycopg2
 import json
+import logging
 from flask import Flask
+from flask import request
 
 app = Flask(__name__)
-
-boundingbox = (51.00, -3.00, 52.00, -2.00)
 
 
 def database():
 	return psycopg2.connect("dbname=travelinedata")
+
+def boundingbox_from_request():
+	return (
+		float(request.args['lat']),
+		float(request.args['lng']),
+		float(request.args['lat']) + float(request.args['height']),
+		float(request.args['lng']) + float(request.args['width']))
 
 @app.route('/')
 def map_page():
@@ -21,12 +28,15 @@ def map_page():
 
 @app.route('/json/')
 def format_json():
+	boundingbox = boundingbox_from_request()
+	logging.info('%r', boundingbox)
 	with database() as conn:
 		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, *boundingbox)
-		return "map_paint({});".format(json.dumps(pairs_and_stops, indent=4))
+		return json.dumps(pairs_and_stops, indent=4)
 
 @app.route('/dot/')
 def format_dot():
+	boundingbox = boundingbox_from_request()
 	with database() as conn:
 		points = line_segments_in_boundingbox(conn, *boundingbox)
 		return 'digraph {\n' + '\n'.join(
@@ -35,4 +45,5 @@ def format_dot():
 		) + '\n}'
 
 if __name__ == '__main__':
+	logging.basicConfig(level=logging.INFO)
 	app.run()

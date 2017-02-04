@@ -100,7 +100,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 
 			WHERE atcocode IN %s
 			AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
-		""", (tuple(atcocode_list), minlat, minlong, maxlat, maxlong,))
+		""", (tuple(atcocode_list) or ('nothing',), minlat, minlong, maxlat, maxlong,))
 		bus_stops = {
 			stop_id: {
 				"lat": latitude,
