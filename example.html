@@ -4,21 +4,27 @@ svg path {
 	fill-opacity: 1;
 	stroke: black;
 	stroke-opacity: 1;
+	stroke-width: 1px;
 }
 </style>
-<svg style="width: 100000px; height: 100000px" xmlns="http://www.w3.org/2000/svg">
-	<g id="map_paint_area" /> <!-- transform="translate(253, -5148)"> -->
+<svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+	<g id="map_paint_area">
 	</g>
-
 </svg>
 <script type="application/javascript">
-// boundingbox = (51.48, -2.52, 51.99, -2.40)
 
-function scaley(v) {
-	return (v * 1000) - 51750
+function scale(value) {
+	/*
+	you might think this is possible from transform=scale(1000) and
+	stroke-width: 0.001px, but this only makes either invisible or
+	thick lines
+	*/
+	return value * 1000;
 }
-function scalex(v) {
-	return (v * 1000) + 2530
+
+function pan_to_location(lng, lat) {
+	var svg = document.getElementById("map_paint_area");
+	svg.setAttribute("transform", "translate(" + scale(lng) + "," + scale(lat) + ")");
 }
 
 function path_description(data, pair) {
@@ -27,10 +33,12 @@ function path_description(data, pair) {
 	if (from_stop === undefined || to_stop === undefined) {
 		return null;
 	}
-	return "M " + scalex(from_stop["lng"]) + " " + scaley(from_stop["lat"]) + " L " + scalex(to_stop["lng"]) + " " + scaley(to_stop["lat"]);
+	return "M " + scale(from_stop["lng"]) + " " + scale(from_stop["lat"]) + " L " + scale(to_stop["lng"]) + " " + scale(to_stop["lat"]);
 }
 
 function map_paint(data) {
+	pan_to_location(2.530, -51.750);
+
 	var svg = document.getElementById("map_paint_area");
 	data["pairs"].forEach(function (pair) {
 		var path_desc = path_description(data, pair);
