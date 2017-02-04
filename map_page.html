@@ -2,7 +2,6 @@
 <html>
 <head>
 <!--
-- let this repaint on window resize (ie: give ids to paths and check they don't already exist
 - factor out hard-coded lat/lng/zoom
 - color lines by frequency
 - make curvy lines
@@ -60,11 +59,15 @@ function path_description(data, pair) {
 function map_paint(data) {
 	var svg = document.getElementById("map_paint_area");
 	data["pairs"].forEach(function (pair) {
-		var path_desc = path_description(data, pair);
-		if (path_desc !== null) {
-			var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-			path.setAttribute("d", path_desc);
-			svg.appendChild(path);
+		var path_id = "path_" + pair["from"] + "_" + pair["to"];
+		if (document.getElementById(path_id) === null) {
+			var path_desc = path_description(data, pair);
+			if (path_desc !== null) {
+				var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+				path.setAttribute("id", path_id);
+				path.setAttribute("d", path_desc);
+				svg.appendChild(path);
+			}
 		}
 	});
 }
@@ -90,6 +93,7 @@ function fetch_data_and_repaint() {
 
 
 window.addEventListener("load", fetch_data_and_repaint);
+window.addEventListener("resize", fetch_data_and_repaint);
 
 </script>
 </head>
