@@ -21,6 +21,15 @@ svg path {
 	stroke-width: 1px;
 }
 
+svg path[frequency=high] {
+}
+svg path[frequency=medium] {
+	opacity: 0.3;
+}
+svg path[frequency=low] {
+	opacity: 0.1;
+}
+
 .fullscreen {
 	height: 100vh;
 	width: 100vw;
@@ -34,7 +43,7 @@ svg path {
 <script type="application/javascript">
 
 var tlglobals = {
-	zoom: 2000,
+	zoom: 10000,
 	lng: -2.530,
 	lat: 51.750
 }
@@ -71,10 +80,21 @@ function map_paint(data) {
 				var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 				path.setAttribute("id", path_id);
 				path.setAttribute("d", path_desc);
+				path.setAttribute("frequency", frequency_label(pair["frequency"]));
 				svg.appendChild(path);
 			}
 		}
 	});
+}
+
+function frequency_label(buses_per_hour) {
+	if (buses_per_hour >= 4) {
+		return "high";
+	} else if (buses_per_hour >= 2) {
+		return "medium";
+	} else {
+		return "low";
+	}
 }
 
 function set_pan_location() {
@@ -116,12 +136,12 @@ window.addEventListener("resize", function () {
 window.addEventListener("keyup", function (event) {
 	switch (event.key) {
 		case "q":
-			tlglobals.zoom *= 1.1;
+			tlglobals.zoom *= 1.5;
 			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
 			fetch_data_and_repaint();
 			break;
 		case "e":
-			tlglobals.zoom /= 1.1;
+			tlglobals.zoom /= 1.5;
 			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
 			fetch_data_and_repaint();
 			break;
