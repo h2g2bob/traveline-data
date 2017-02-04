@@ -69,9 +69,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 				timing.from_stoppoint,
 				timing.to_stoppoint,
 				sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency,
-				array_agg(distinct line.line_name) AS line_names,
-				max(width(jp_bbox.bounding_box)) as box_width,
-				max(height(jp_bbox.bounding_box)) as box_height
+				array_agg(distinct line.line_name) AS line_names
 
 			FROM jptiminglink timing
 			JOIN journeypattern_service_section section USING (jpsection_id)
@@ -83,9 +81,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			""", (day_of_week, minlat, minlong, maxlat, maxlong,))
 		bus_stop_pairs = []
 		atcocode_list = set()
-		tollerance_height = 0.0
-		tollerance_width = 0.0
-		for from_id, to_id, frequency, line_names, box_width, box_height in cur:
+		for from_id, to_id, frequency, line_names in cur:
 			bus_stop_pairs.append({
 				"from": from_id,
 				"to": to_id,
@@ -94,34 +90,48 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			atcocode_list.add(from_id)
 			atcocode_list.add(to_id)
 
-			# expand the next query so we can draw lines which have
-			# one stop inside and one outside the bounding box
-			# (there must be a better way to do this?)
-			if box_width > tollerance_width:
-				tollerance_width = box_width
-			if box_width > tollerance_height:
-				tollerance_height = box_height
+		# Efficiently find most of the bus stops using the geographic index:
+		bus_stops = {}
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode,
+					latitude,
+					longitude
+				FROM
+					naptan
 
-		cur.execute("""
-			SELECT
-				atcocode,
-				latitude,
-				longitude
-			FROM
-				naptan
+				WHERE atcocode IN %s
+				AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
+			""", (
+				tuple(atcocode_list),
+				minlat,
+				minlong,
+				maxlat,
+				maxlong,))
+			for stop_id, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"lat": latitude,
+					"lng": longitude}
+				atcocode_list.remove(stop_id)
 
-			WHERE atcocode IN %s
-			AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
-		""", (
-			tuple(atcocode_list) or ('nothing',),
-			minlat - tollerance_height,
-			minlong - tollerance_width,
-			maxlat + tollerance_height,
-			maxlong + tollerance_width,))
-		bus_stops = {
-			stop_id: {
-				"lat": latitude,
-				"lng": longitude}
-			for (stop_id, latitude, longitude)
-			in cur}
+		# We want to draw lines whuch have a bus stop inside and a bus stop outside
+		# the requested bounding box. We query the extra bus stops we need with this
+		# inefficient query (which will probably do a loop over the index on atcocode)
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode,
+					latitude,
+					longitude
+				FROM
+					naptan
+
+				WHERE atcocode IN %s
+			""", (tuple(atcocode_list) or ('nothing',),))
+			for stop_id, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"lat": latitude,
+					"lng": longitude}
+
 	return {"pairs": bus_stop_pairs, "stops": bus_stops}
