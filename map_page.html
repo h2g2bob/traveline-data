@@ -42,83 +42,231 @@ svg path[frequency=low] {
 </style>
 <script type="application/javascript">
 
-var tlglobals = {
-	zoom: 10000,
-	lng: -2.530,
-	lat: 51.750
+function Box(minlng, maxlng, minlat, maxlat) {
+	this.minlng = minlng;
+	this.maxlng = maxlng;
+	this.minlat = minlat;
+	this.maxlat = maxlat;
 }
+Box.prototype = {
+	width: function () {
+		return this.maxlng - this.minlng;
+	},
 
-function scale(value) {
-	/*
-	you might think this is possible from transform=scale(1000) and
-	stroke-width: 0.001px, but this only makes either invisible or
-	thick lines
-	*/
-	return value * tlglobals.zoom;
-}
+	height: function () {
+		return this.maxlat - this.minlat;
+	},
 
-function descale(value) {
-	return value / tlglobals.zoom;
-}
-
-function path_description(data, pair) {
-	var from_stop = data["stops"][pair["from"]];
-	var to_stop = data["stops"][pair["to"]];
-	if (from_stop === undefined || to_stop === undefined) {
-		return null;
+	toString: function () {
+		return "Box(" + this.minlng + ", " + this.maxlng + ", " + this.minlat + ", " + this.maxlat + ")";
 	}
-	return "M " + scale(from_stop["lng"]) + " " + scale(from_stop["lat"]) + " L " + scale(to_stop["lng"]) + " " + scale(to_stop["lat"]);
 }
 
-function map_paint(data) {
-	var svg = document.getElementById("map_paint_area");
-	data["pairs"].forEach(function (pair) {
-		var path_id = "path_" + pair["from"] + "_" + pair["to"];
-		if (document.getElementById(path_id) === null) {
-			var path_desc = path_description(data, pair);
-			if (path_desc !== null) {
-				var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-				path.setAttribute("id", path_id);
-				path.setAttribute("d", path_desc);
-				path.setAttribute("frequency", frequency_label(pair["frequency"]));
-				svg.appendChild(path);
+function TravelineDataMap(container, paint, lng, lat) {
+	this.container = container;
+	this.paint = paint;
+
+	/* current top-left position, call pan() after changing this */
+	this.lat = lat;
+	this.lng = lng;
+
+	/* currently we "requested" just a single point -- but we can build from this one point */
+	this.data_already_requested = new Box(lng, lng, lat, lat)
+}
+TravelineDataMap.prototype = {
+	current_viewport: function () {
+		return new Box(
+			this.lng,
+			this.lng + this.paint.descale(this.container.offsetHeight),
+			this.lat,
+			this.lat + this.paint.descale(this.container.offsetWidth)
+		);
+	},
+
+	fetch_more_data: function () {
+		var next_download = this.calculate_region_to_dowload_next();
+		if (next_download !== null) {
+			console.log("should download " + next_download);
+
+			var url = "/json/?lat=" + next_download.minlat + "&lng=" + next_download.minlng + "&width=" + next_download.width() + "&height=" + next_download.height();
+			var that = this;
+			var callback = function () {
+				if (xmlhttpreq.readyState == 4) {
+					that.paint.add_data(JSON.parse(xmlhttpreq.responseText));
+				}
+			};
+
+			var xmlhttpreq = new XMLHttpRequest();
+			xmlhttpreq.addEventListener("load", callback);
+			xmlhttpreq.open("GET", url);
+			xmlhttpreq.send();
+		}
+	},
+
+	pan: function() {
+		this.paint.svg.setAttribute("transform", "translate(" + this.paint.scale(-this.lng) + "," + this.paint.scale(-this.lat) + ")");
+	},
+
+	calculate_region_to_dowload_next: function () {
+		var desired = this.current_viewport();
+		var max_single_request_size = 0.1;
+
+		if (desired.maxlat > this.data_already_requested.maxlat) {
+			/* expand right */
+			var old_maxlat = this.data_already_requested.maxlat;
+			this.data_already_requested.maxlat = Math.min(
+				desired.maxlat,
+				this.data_already_requested.maxlat + max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				this.data_already_requested.maxlng,
+				old_maxlat,
+				this.data_already_requested.maxlat
+			);
+		} else if (desired.maxlat < this.data_already_requested.minlat) {
+			/* expand left */
+			var old_minlat = this.data_already_requested.minlat;
+			this.data_already_requested.minlat = Math.max(
+				desired.minlat,
+				this.data_already_requested.minlat - max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				this.data_already_requested.maxlng,
+				this.data_already_requested.minlat,
+				old_minlat
+			);
+		} else if (desired.maxlng > this.data_already_requested.maxlng) {
+			/* expand down */
+			var old_maxlng = this.data_already_requested.maxlng;
+			this.data_already_requested.maxlng = Math.min(
+				desired.maxlng,
+				this.data_already_requested.maxlng + max_single_request_size)
+			return new Box(
+				old_maxlng,
+				this.data_already_requested.maxlng,
+				this.data_already_requested.minlat,
+				this.data_already_requested.maxlat
+			);
+		} else if (desired.maxlng < this.data_already_requested.minlng) {
+			/* expand up */
+			var old_minlng = this.data_already_requested.minlng;
+			this.data_already_requested.minlng = Math.max(
+				desired.minlng,
+				this.data_already_requested.minlng - max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				old_minlng,
+				this.data_already_requested.minlat,
+				this.data_already_requested.maxlat
+			);
+		} else {
+			return null;
+		}
+	},
+
+	run: function () {
+		this.pan();
+		window.setInterval(this.fetch_more_data.bind(this), 100);
+	}
+}
+
+function TLDataPaint(svg) {
+	this.zoom = 5000;
+	this.svg = svg;
+}
+TLDataPaint.prototype = {
+	scale: function (value) {
+		/*
+		you might think this is possible from transform=scale(1000) and
+		stroke-width: 0.001px, but this only makes either invisible or
+		thick lines
+		*/
+		return value * this.zoom;
+	},
+
+	descale: function (value) {
+		return value / this.zoom;
+	},
+
+	add_data: function (data) {
+		var paint = this;
+		data["pairs"].forEach(function (pair) {
+			var path_id = "path_" + pair["from"] + "_" + pair["to"];
+			if (document.getElementById(path_id) === null) {
+				var path_desc = paint.path_description(data, pair);
+				if (path_desc !== null) {
+					var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+					path.setAttribute("id", path_id);
+					path.setAttribute("d", path_desc);
+					path.setAttribute("frequency", paint.frequency_label(pair["frequency"]));
+					paint.svg.appendChild(path);
+				}
 			}
+		});
+	},
+
+	path_description: function (data, pair) {
+		var from_stop = data["stops"][pair["from"]];
+		var to_stop = data["stops"][pair["to"]];
+		if (from_stop === undefined || to_stop === undefined) {
+			return null;
+		}
+		return "M " + this.scale(from_stop["lng"]) + " " + this.scale(from_stop["lat"]) + " L " + this.scale(to_stop["lng"]) + " " + this.scale(to_stop["lat"]);
+	},
+
+	frequency_label: function(buses_per_hour) {
+		if (buses_per_hour >= 4) {
+			return "high";
+		} else if (buses_per_hour >= 2) {
+			return "medium";
+		} else {
+			return "low";
+		}
+	}
+};
+
+window.addEventListener("load", function () {
+	var paint = new TLDataPaint(document.getElementById("map_paint_area"));
+	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, -2.530, 51.750);
+	window.travelinedatamap.run();
+
+	window.addEventListener("keyup", function (event) {
+		switch (event.key) {
+			case "q":
+				tlglobals.zoom *= 1.5;
+				clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+				queue_fetching_data();
+				break;
+			case "e":
+				tlglobals.zoom /= 1.5;
+				clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+				queue_fetching_data();
+				break;
+			case "w":
+				window.travelinedatamap.lat -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "s":
+				window.travelinedatamap.lat += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "a":
+				window.travelinedatamap.lng -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "d":
+				window.travelinedatamap.lng += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
 		}
 	});
-}
 
-function frequency_label(buses_per_hour) {
-	if (buses_per_hour >= 4) {
-		return "high";
-	} else if (buses_per_hour >= 2) {
-		return "medium";
-	} else {
-		return "low";
-	}
-}
+});
 
-function set_pan_location() {
-	var svg = document.getElementById("map_paint_area");
-	svg.setAttribute("transform", "translate(" + scale(-tlglobals.lng) + "," + scale(-tlglobals.lat) + ")");
-}
 
-function fetch_data_and_repaint() {
-	set_pan_location();
 
-	var map_container = document.getElementById("map_paint_container");
-	var url = "/json/?lat=" + tlglobals.lat + "&lng=" + tlglobals.lng + "&width=" + descale(map_container.offsetWidth) + "&height=" + descale(map_paint_container.offsetHeight);
 
-	var callback = function () {
-		if (xmlhttpreq.readyState == 4) {
-			map_paint(JSON.parse(xmlhttpreq.responseText));
-		}
-	};
 
-	var xmlhttpreq = new XMLHttpRequest();
-	xmlhttpreq.addEventListener("load", callback);
-	xmlhttpreq.open("GET", url);
-	xmlhttpreq.send();
-}
 
 function clear_canvas() {
 	var svg = document.getElementById("map_paint_area");
@@ -126,43 +274,6 @@ function clear_canvas() {
 		svg.removeChild(child);
 	}
 }
-
-window.addEventListener("load", function () {
-	fetch_data_and_repaint();
-});
-window.addEventListener("resize", function () {
-	fetch_data_and_repaint();
-});
-window.addEventListener("keyup", function (event) {
-	switch (event.key) {
-		case "q":
-			tlglobals.zoom *= 1.5;
-			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
-			fetch_data_and_repaint();
-			break;
-		case "e":
-			tlglobals.zoom /= 1.5;
-			clear_canvas(); /* positions of lines on the canvas change when zoom changes */
-			fetch_data_and_repaint();
-			break;
-		case "w":
-			tlglobals.lat -= 20/tlglobals.zoom;
-			fetch_data_and_repaint();
-			break;
-		case "s":
-			tlglobals.lat += 20/tlglobals.zoom;
-			fetch_data_and_repaint();
-			break;
-		case "a":
-			tlglobals.lng -= 20/tlglobals.zoom;
-			fetch_data_and_repaint();
-			break;
-		case "d":
-			tlglobals.lng += 20/tlglobals.zoom;
-			fetch_data_and_repaint();
-			break;
-	}
-});
 
 </script>
 </head>
