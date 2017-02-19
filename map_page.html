@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--
+- factor out hard-coded lat/lng/zoom
+- color lines by frequency
+- make curvy lines
+- hook up some panning / scrolling mechanism
+-->
+<title>Bus routes</title>
+<style type="text/css">
+svg {
+	background: #003366;
+}
+
+svg path {
+	fill: white;
+	fill-opacity: 0;
+	stroke: white;
+	stroke-opacity: 1;
+	stroke-width: 1px;
+}
+
+svg path[frequency=high] {
+}
+svg path[frequency=medium] {
+	opacity: 0.3;
+}
+svg path[frequency=low] {
+	opacity: 0.1;
+}
+
+.fullscreen {
+	height: 100vh;
+	width: 100vw;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+}
+
+</style>
+<script type="application/javascript">
+
+function Box(minlng, maxlng, minlat, maxlat) {
+	this.minlng = minlng;
+	this.maxlng = maxlng;
+	this.minlat = minlat;
+	this.maxlat = maxlat;
+}
+Box.prototype = {
+	width: function () {
+		return this.maxlng - this.minlng;
+	},
+
+	height: function () {
+		return this.maxlat - this.minlat;
+	},
+
+	toString: function () {
+		return "Box(" + this.minlng + ", " + this.maxlng + ", " + this.minlat + ", " + this.maxlat + ")";
+	}
+}
+
+function TravelineDataMap(container, paint, lng, lat) {
+	this.container = container;
+	this.paint = paint;
+
+	/* current top-left position, call pan() after changing this */
+	this.lat = lat;
+	this.lng = lng;
+
+	/* currently we "requested" just a single point -- but we can build from this one point */
+	this.data_already_requested = new Box(lng, lng, lat, lat)
+}
+TravelineDataMap.prototype = {
+	current_viewport: function () {
+		return new Box(
+			this.lng,
+			this.lng + this.paint.descale(this.container.offsetHeight),
+			this.lat,
+			this.lat + this.paint.descale(this.container.offsetWidth)
+		);
+	},
+
+	fetch_more_data: function () {
+		var next_download = this.calculate_region_to_dowload_next();
+		if (next_download !== null) {
+			console.log("should download " + next_download);
+
+			var url = "/json/?lat=" + next_download.minlat + "&lng=" + next_download.minlng + "&width=" + next_download.width() + "&height=" + next_download.height();
+			var that = this;
+			var callback = function () {
+				if (xmlhttpreq.readyState == 4) {
+					that.paint.add_data(JSON.parse(xmlhttpreq.responseText));
+				}
+			};
+
+			var xmlhttpreq = new XMLHttpRequest();
+			xmlhttpreq.addEventListener("load", callback);
+			xmlhttpreq.open("GET", url);
+			xmlhttpreq.send();
+		}
+	},
+
+	pan: function() {
+		this.paint.svg.setAttribute("transform", "translate(" + this.paint.scale(-this.lng) + "," + this.paint.scale(-this.lat) + ")");
+	},
+
+	calculate_region_to_dowload_next: function () {
+		var desired = this.current_viewport();
+		var max_single_request_size = 0.1;
+
+		if (desired.maxlat > this.data_already_requested.maxlat) {
+			/* expand right */
+			var old_maxlat = this.data_already_requested.maxlat;
+			this.data_already_requested.maxlat = Math.min(
+				desired.maxlat,
+				this.data_already_requested.maxlat + max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				this.data_already_requested.maxlng,
+				old_maxlat,
+				this.data_already_requested.maxlat
+			);
+		} else if (desired.maxlat < this.data_already_requested.minlat) {
+			/* expand left */
+			var old_minlat = this.data_already_requested.minlat;
+			this.data_already_requested.minlat = Math.max(
+				desired.minlat,
+				this.data_already_requested.minlat - max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				this.data_already_requested.maxlng,
+				this.data_already_requested.minlat,
+				old_minlat
+			);
+		} else if (desired.maxlng > this.data_already_requested.maxlng) {
+			/* expand down */
+			var old_maxlng = this.data_already_requested.maxlng;
+			this.data_already_requested.maxlng = Math.min(
+				desired.maxlng,
+				this.data_already_requested.maxlng + max_single_request_size)
+			return new Box(
+				old_maxlng,
+				this.data_already_requested.maxlng,
+				this.data_already_requested.minlat,
+				this.data_already_requested.maxlat
+			);
+		} else if (desired.maxlng < this.data_already_requested.minlng) {
+			/* expand up */
+			var old_minlng = this.data_already_requested.minlng;
+			this.data_already_requested.minlng = Math.max(
+				desired.minlng,
+				this.data_already_requested.minlng - max_single_request_size)
+			return new Box(
+				this.data_already_requested.minlng,
+				old_minlng,
+				this.data_already_requested.minlat,
+				this.data_already_requested.maxlat
+			);
+		} else {
+			return null;
+		}
+	},
+
+	run: function () {
+		this.pan();
+		window.setInterval(this.fetch_more_data.bind(this), 100);
+	}
+}
+
+function TLDataPaint(svg) {
+	this.zoom = 5000;
+	this.svg = svg;
+}
+TLDataPaint.prototype = {
+	scale: function (value) {
+		/*
+		you might think this is possible from transform=scale(1000) and
+		stroke-width: 0.001px, but this only makes either invisible or
+		thick lines
+		*/
+		return value * this.zoom;
+	},
+
+	descale: function (value) {
+		return value / this.zoom;
+	},
+
+	add_data: function (data) {
+		var paint = this;
+		data["pairs"].forEach(function (pair) {
+			var path_id = "path_" + pair["from"] + "_" + pair["to"];
+			if (document.getElementById(path_id) === null) {
+				var path_desc = paint.path_description(data, pair);
+				if (path_desc !== null) {
+					var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+					path.setAttribute("id", path_id);
+					path.setAttribute("d", path_desc);
+					path.setAttribute("frequency", paint.frequency_label(pair["frequency"]));
+					paint.svg.appendChild(path);
+				}
+			}
+		});
+	},
+
+	path_description: function (data, pair) {
+		var from_stop = data["stops"][pair["from"]];
+		var to_stop = data["stops"][pair["to"]];
+		if (from_stop === undefined || to_stop === undefined) {
+			return null;
+		}
+		return "M " + this.scale(from_stop["lng"]) + " " + this.scale(from_stop["lat"]) + " L " + this.scale(to_stop["lng"]) + " " + this.scale(to_stop["lat"]);
+	},
+
+	frequency_label: function(buses_per_hour) {
+		if (buses_per_hour >= 4) {
+			return "high";
+		} else if (buses_per_hour >= 2) {
+			return "medium";
+		} else {
+			return "low";
+		}
+	}
+};
+
+window.addEventListener("load", function () {
+	var paint = new TLDataPaint(document.getElementById("map_paint_area"));
+	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, -2.530, 51.750);
+	window.travelinedatamap.run();
+
+	window.addEventListener("keyup", function (event) {
+		switch (event.key) {
+			case "q":
+				tlglobals.zoom *= 1.5;
+				clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+				queue_fetching_data();
+				break;
+			case "e":
+				tlglobals.zoom /= 1.5;
+				clear_canvas(); /* positions of lines on the canvas change when zoom changes */
+				queue_fetching_data();
+				break;
+			case "w":
+				window.travelinedatamap.lat -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "s":
+				window.travelinedatamap.lat += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "a":
+				window.travelinedatamap.lng -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+			case "d":
+				window.travelinedatamap.lng += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.pan();
+				break;
+		}
+	});
+
+});
+
+
+
+
+
+
+function clear_canvas() {
+	var svg = document.getElementById("map_paint_area");
+	for (var child=svg.firstChild; child !== null; child=svg.firstChild) {
+		svg.removeChild(child);
+	}
+}
+
+</script>
+</head>
+<body class="fullscreen">
+<div id="map_paint_container" class="fullscreen"><svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+	<g id="map_paint_area">
+	</g>
+</svg></div>
+</body>

@@ -90,21 +90,48 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			atcocode_list.add(from_id)
 			atcocode_list.add(to_id)
 
-		cur.execute("""
-			SELECT
-				atcocode,
-				latitude,
-				longitude
-			FROM
-				naptan
+		# Efficiently find most of the bus stops using the geographic index:
+		bus_stops = {}
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode,
+					latitude,
+					longitude
+				FROM
+					naptan
 
-			WHERE atcocode IN %s
-			AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
-		""", (tuple(atcocode_list), minlat, minlong, maxlat, maxlong,))
-		bus_stops = {
-			stop_id: {
-				"lat": latitude,
-				"lng": longitude}
-			for (stop_id, latitude, longitude)
-			in cur}
+				WHERE atcocode IN %s
+				AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
+			""", (
+				tuple(atcocode_list),
+				minlat,
+				minlong,
+				maxlat,
+				maxlong,))
+			for stop_id, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"lat": latitude,
+					"lng": longitude}
+				atcocode_list.remove(stop_id)
+
+		# We want to draw lines whuch have a bus stop inside and a bus stop outside
+		# the requested bounding box. We query the extra bus stops we need with this
+		# inefficient query (which will probably do a loop over the index on atcocode)
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode,
+					latitude,
+					longitude
+				FROM
+					naptan
+
+				WHERE atcocode IN %s
+			""", (tuple(atcocode_list) or ('nothing',),))
+			for stop_id, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"lat": latitude,
+					"lng": longitude}
+
 	return {"pairs": bus_stop_pairs, "stops": bus_stops}
