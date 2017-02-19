@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # encoding: utf8
 
+import logging
+
 TABLE_COMMANDS = [
 	("""
 		DROP TABLE IF EXISTS source;
@@ -170,6 +172,7 @@ def refresh_materialized_views(conn):
 
 def create_materialized_views(conn):
 	with conn.cursor() as cur:
+		logging.info("Generating mv_vehiclejourney_per_hour...")
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
@@ -203,23 +206,42 @@ def create_materialized_views(conn):
 			FROM vehiclejourney
 			GROUP BY 1,2,3;
 		""")
+
+		logging.info("Generating mv_journeypattern_bounding_box...")
+		# Doing this the normal way will make you run out of disk space
+		# So we force this to be a loop over each service
 		cur.execute("""
-			CREATE MATERIALIZED VIEW mv_journeypattern_bounding_box AS
-			SELECT
-				journeypattern_id,
-				box(
-					point(
-						(select min(minlat) from (select min(n_from.latitude) as minlat union select min(n_to.latitude) as minlat) as tminlat),
-						(select min(minlong) from (select min(n_from.longitude) as minlong union select min(n_to.longitude) as minlong) as tinlong)),
-					point(
-						(select max(maxlat) from (select max(n_from.latitude) as maxlat union select max(n_to.latitude) as maxlat) as tmaxlat),
-						(select max(maxlong) from (select max(n_from.longitude) as maxlong union select max(n_to.longitude) as maxlong) as tmaxling))) AS bounding_box
-			FROM jptiminglink timing
-			JOIN journeypattern_service_section section USING (jpsection_id)
-			JOIN journeypattern_service service USING (journeypattern_id)
-			JOIN naptan n_from ON n_from.atcocode = timing.from_stoppoint
-			JOIN naptan n_to ON n_to.atcocode = timing.to_stoppoint
-			GROUP BY 1;
+			CREATE OR REPLACE FUNCTION fn_journeypattern_bounding_box()
+			RETURNS TABLE (journeypattern_id int, bounding_box box)
+			AS $$
+				DECLARE service record;
+				BEGIN
+				    FOR service IN SELECT * FROM journeypattern_service
+				    LOOP
+
+					RETURN QUERY SELECT
+						section.journeypattern_id,
+						box(
+							point(
+								(select min(minlat) from (select min(n_from.latitude) as minlat union select min(n_to.latitude) as minlat) as tminlat),
+								(select min(minlong) from (select min(n_from.longitude) as minlong union select min(n_to.longitude) as minlong) as tinlong)),
+							point(
+								(select max(maxlat) from (select max(n_from.latitude) as maxlat union select max(n_to.latitude) as maxlat) as tmaxlat),
+								(select max(maxlong) from (select max(n_from.longitude) as maxlong union select max(n_to.longitude) as maxlong) as tmaxling))) AS bounding_box
+					FROM jptiminglink timing
+					JOIN journeypattern_service_section section USING (jpsection_id)
+					JOIN naptan n_from ON n_from.atcocode = timing.from_stoppoint
+					JOIN naptan n_to ON n_to.atcocode = timing.to_stoppoint
+					WHERE section.journeypattern_id = service.journeypattern_id
+					GROUP BY 1;
+
+				    END LOOP;
+				END$$
+			LANGUAGE plpgsql;
+		""")
+		cur.execute("""
+			CREATE MATERIALIZED VIEW mv_journeypattern_bounding_box
+			AS SELECT * FROM fn_journeypattern_bounding_box();
 		""")
 		cur.execute("""
 			CREATE INDEX idx_journeypattern_bounding_box
