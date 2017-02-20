@@ -206,6 +206,11 @@ def create_materialized_views(conn):
 			FROM vehiclejourney
 			GROUP BY 1,2,3;
 		""")
+		cur.execute("""
+			CREATE INDEX idx_vehiclejourney_per_hour_id
+			ON mv_vehiclejourney_per_hour
+			USING btree (journeypattern_id);
+		""")
 
 		logging.info("Generating mv_journeypattern_bounding_box...")
 		# Doing this the normal way will make you run out of disk space
