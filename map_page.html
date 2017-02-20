@@ -71,12 +71,13 @@ function TravelineDataMap(container, paint, lng, lat) {
 	this.lng = lng;
 
 	/* set this.data_already_requested */
-	this.zero_requested_data()
+	this.zero_requested_data();
 }
 TravelineDataMap.prototype = {
 	zero_requested_data: function () {
 		/* currently we "requested" just a single point -- but we can build from this one point */
-		this.data_already_requested = new Box(this.lng, this.lng, this.lat, this.lat)
+		this.paint.clear();
+		this.data_already_requested = new Box(this.lng, this.lng, this.lat, this.lat);
 	},
 
 	current_viewport: function () {
@@ -218,6 +219,12 @@ TLDataPaint.prototype = {
 		});
 	},
 
+	clear: function() {
+		for (var child = this.svg.firstChild; child !== null; child = this.svg.firstChild) {
+			this.svg.removeChild(child);
+		}
+	},
+
 	debug_show_requested_data: function (name, box, style) {
 		var path = document.getElementById(name);
 		if (path == undefined) {
@@ -257,50 +264,95 @@ window.addEventListener("load", function () {
 	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, -2.530, 51.750);
 	window.travelinedatamap.run();
 
+	var step_size = 100
+
+	function do_zoom(scale) {
+		paint.zoom *= scale;
+
+		/* positions of lines on the canvas change when zoom changes */
+		window.travelinedatamap.zero_requested_data();
+
+		/* which also means the pan position changes */
+		window.travelinedatamap.pan();
+	}
+
 	window.addEventListener("keyup", function (event) {
 		switch (event.key) {
 			case "q":
-				paint.zoom *= 1.5;
-				window.travelinedatamap.zero_requested_data(); /* positions of lines on the canvas change when zoom changes */
-				window.travelinedatamap.pan(); /* which also means the pan position changes */
+				do_zoom(1.5);
 				break;
 			case "e":
-				paint.zoom /= 1.5;
-				window.travelinedatamap.zero_requested_data(); /* positions of lines on the canvas change when zoom changes */
-				window.travelinedatamap.pan(); /* which also means the pan position changes */
+				do_zoom(1/1.5);
 				break;
 			case "w":
-				window.travelinedatamap.lat -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.lat -= step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "s":
-				window.travelinedatamap.lat += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.lat += step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "a":
-				window.travelinedatamap.lng -= 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.lng -= step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "d":
-				window.travelinedatamap.lng += 20/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.lng += step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 		}
 	});
 
+	var drag_elem = document.getElementById("map_paint_container");
+	var drag_start_x = undefined;
+	var drag_start_y = undefined;
+	drag_elem.addEventListener("mousedown", function (event) {
+		drag_start_x = event.screenX;
+		drag_start_y = event.screenY;
+	}, false);
+	drag_elem.addEventListener("mouseup", function (event) {
+		drag_start_x = undefined;
+		drag_start_y = undefined;
+	}, false);
+	drag_elem.addEventListener("mousemove", function (event) {
+		if (drag_start_x !== undefined && drag_start_y !== undefined) {
+			var change_x = event.screenX - drag_start_x;
+			var change_y = event.screenY - drag_start_y;
+			drag_start_x = event.screenX;
+			drag_start_y = event.screenY;
+			window.travelinedatamap.lat -= change_y/window.travelinedatamap.paint.zoom;
+			window.travelinedatamap.lng -= change_x/window.travelinedatamap.paint.zoom;
+			window.travelinedatamap.pan();
+		}
+	}, false);
+
+	function add_control(label, action) {
+		var btn = document.createElement("button");
+		btn.textContent = label;
+		btn.addEventListener("click", action, false);
+		document.getElementById("controls").appendChild(btn);
+	}
+	add_control("+", function () { do_zoom(1.5); });
+	add_control("-", function () { do_zoom(1/1.5); });
+	add_control("N", function () {
+		window.travelinedatamap.lat -= step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.pan();
+	});
+	add_control("S", function () {
+		window.travelinedatamap.lat += step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.pan();
+	});
+	add_control("W", function () {
+		window.travelinedatamap.lng -= step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.pan();
+	});
+	add_control("E", function () {
+		window.travelinedatamap.lng += step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.pan();
+	});
 });
 
 
-
-
-
-
-function clear_canvas() {
-	var svg = document.getElementById("map_paint_area");
-	for (var child=svg.firstChild; child !== null; child=svg.firstChild) {
-		svg.removeChild(child);
-	}
-}
 
 </script>
 </head>
