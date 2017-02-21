@@ -1,12 +1,16 @@
 #!/usr/bin/python3
 # encoding: utf8
 
-from tlparser.query_boundingbox import line_segments_in_boundingbox, line_segments_and_stops_in_boundingbox
+from tlparser.query_boundingbox import line_segments_and_stops_in_boundingbox
+from tlparser.query_boundingbox import line_segments_in_boundingbox
+from tlparser.query_boundingbox import journeypattern_ids_in_boundingbox
+from tlparser.query_boundingbox import line_segments_and_stops_for_journeypattern
 import psycopg2
 import json
 import logging
 from flask import Flask
 from flask import request
+from flask import jsonify
 
 app = Flask(__name__)
 
@@ -41,8 +45,24 @@ def format_json():
 	logging.info('%r', boundingbox)
 	with database() as conn:
 		statement_timeout(conn, 10)
-		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, *boundingbox)
+		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, *boundingbox) # XXX this will time out
 		return json.dumps(pairs_and_stops, indent=4)
+
+@app.route('/bbox/')
+def format_journeypattern_ids_in_boundingbox():
+	boundingbox = boundingbox_from_request()
+	logging.info('%r', boundingbox)
+	with database() as conn:
+		statement_timeout(conn, 10)
+		jpid_list = journeypattern_ids_in_boundingbox(conn, *boundingbox)
+		return jsonify({"journeypatterns": jpid_list})
+
+@app.route('/jp/<int:journeypattern_id>/')
+def format_journeypattern(journeypattern_id):
+	with database() as conn:
+		statement_timeout(conn, 10)
+		pairs_and_stops = line_segments_and_stops_for_journeypattern(conn, journeypattern_id)
+		return jsonify(pairs_and_stops)
 
 @app.route('/dot/')
 def format_dot():

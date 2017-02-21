@@ -135,3 +135,65 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 					"lng": longitude}
 
 	return {"pairs": bus_stop_pairs, "stops": bus_stops}
+
+def journeypattern_ids_in_boundingbox(conn, minlat, minlong, maxlat, maxlong):
+	with conn.cursor() as cur:
+		cur.execute("""
+			SELECT jp_bbox.journeypattern_id
+			FROM mv_journeypattern_bounding_box jp_bbox
+			WHERE jp_bbox.bounding_box && box(point(%s, %s), point(%s, %s));
+			""", (minlat, minlong, maxlat, maxlong,))
+		return [jpid for [jpid] in cur]
+
+def line_segments_and_stops_for_journeypattern(conn, journeypattern_id, day_of_week=0x01, hour=12):
+	assert 0 <= hour < 24
+	hour_column = 'hour_%d' % (hour,)
+	with conn.cursor() as cur:
+		cur.execute("""
+			SELECT
+				timing.from_stoppoint,
+				timing.to_stoppoint,
+				sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency,
+				array_agg(distinct line.line_name) AS line_names
+
+			FROM jptiminglink timing
+			JOIN journeypattern_service_section section USING (jpsection_id)
+			JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
+			LEFT JOIN line line ON vjph.line_id = line.line_id
+			WHERE journeypattern_id = %s
+			GROUP BY 1, 2
+			""", (day_of_week, journeypattern_id,))
+		bus_stop_pairs = []
+		atcocode_list = set()
+		for from_id, to_id, frequency, line_names in cur:
+			bus_stop_pairs.append({
+				"from": from_id,
+				"to": to_id,
+				"frequency": int(frequency),
+				"line_names": line_names})
+			atcocode_list.add(from_id)
+			atcocode_list.add(to_id)
+
+		# Efficiently find most of the bus stops using the geographic index:
+		bus_stops = {}
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode,
+					latitude,
+					longitude
+				FROM
+					naptan
+
+				WHERE atcocode IN %s
+				AND point(latitude, longitude) <@ (SELECT jp_bbox.bounding_box FROM mv_journeypattern_bounding_box jp_bbox WHERE journeypattern_id = %s)
+			""", (
+				tuple(atcocode_list),
+				journeypattern_id,))
+			for stop_id, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"lat": latitude,
+					"lng": longitude}
+				atcocode_list.remove(stop_id)
+
+	return {"pairs": bus_stop_pairs, "stops": bus_stops}
