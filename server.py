@@ -14,6 +14,11 @@ app = Flask(__name__)
 def database():
 	return psycopg2.connect("dbname=travelinedata")
 
+def statement_timeout(conn, seconds):
+	millis = int(seconds*1000)
+	with conn.cursor() as cur:
+		cur.execute("SET statement_timeout TO %s;", (millis,))
+
 def boundingbox_from_request():
 	height = float(request.args['height'])
 	width = float(request.args['width'])
@@ -35,6 +40,7 @@ def format_json():
 	boundingbox = boundingbox_from_request()
 	logging.info('%r', boundingbox)
 	with database() as conn:
+		statement_timeout(conn, 10)
 		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, *boundingbox)
 		return json.dumps(pairs_and_stops, indent=4)
 
@@ -42,6 +48,7 @@ def format_json():
 def format_dot():
 	boundingbox = boundingbox_from_request()
 	with database() as conn:
+		statement_timeout(conn, 10)
 		points = line_segments_in_boundingbox(conn, *boundingbox)
 		return 'digraph {\n' + '\n'.join(
 			'"{}" -> "{}";'.format(point['from']['id'], point['to']['id'])
