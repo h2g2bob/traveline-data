@@ -94,6 +94,8 @@ def add_journeypatternsection(elem, conn, source_id):
 def add_vehiclejourney(elem, conn, source_id):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 	jpref_id = maybe_one(elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES))
+	# ^^ this can be None
+	# ^^ and there can be a link to a different vehiclejourney in a VehicleJourneyRef
 	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[departuretime] = elem.xpath("./tx:DepartureTime/text()", namespaces=NAMESPACES)
@@ -133,6 +135,10 @@ def add_vehiclejourney(elem, conn, source_id):
 
 	departuretime_time = datetime.datetime.strptime(departuretime, "%H:%M:%S").time()
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
+
+	if jpref_id is None:
+		logging.error("Cannot consider vehiclejourney %r %r: it is not part of any journeypattern!", source_id, vjcode_id)
+		return
 
 	with conn.cursor() as cur:
 		jpintern = interned_journeypattern(conn, source_id, jpref_id)
