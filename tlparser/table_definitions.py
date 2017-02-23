@@ -256,46 +256,52 @@ def create_intern_tables(conn):
 		cur.execute("""
 			CREATE TABLE IF NOT EXISTS journeypattern_intern (
 				journeypattern_id SERIAL PRIMARY KEY,
-				journeypattern TEXT UNIQUE)
+				source_id INTEGER NOT NULL REFERENCES source(source_id),
+				journeypattern TEXT NOT NULL)
+			UNIQUE (source_id, journeypattern)
 		""")
 		cur.execute("""
 			CREATE TABLE IF NOT EXISTS jpsection_intern (
 				jpsection_id SERIAL PRIMARY KEY,
-				jpsection TEXT UNIQUE)
+				source_id INTEGER NOT NULL REFERENCES source(source_id)
+				jpsection TEXT NOT NULL)
+			UNIQUE (source_id, jpsection)
 		""")
 
-def interned_journeypattern(conn, journeypattern):
+def interned_journeypattern(conn, source_id, journeypattern):
 	with conn.cursor() as cur:
 		cur.execute("""
 			SELECT journeypattern_id
 			FROM journeypattern_intern
-			WHERE journeypattern = %s
-		""", (journeypattern,))
+			WHERE source_id = %s
+			AND journeypattern = %s
+		""", (source_id, journeypattern,))
 		rows = list(cur)
 		if len(rows) == 0:
 			cur.execute("""
-				INSERT INTO journeypattern_intern(journeypattern)
-				VALUES (%s)
+				INSERT INTO journeypattern_intern(source_id, journeypattern)
+				VALUES (%s, %s)
 				RETURNING journeypattern_id
-			""", (journeypattern,))
+			""", (source_id, journeypattern,))
 			rows = list(cur)
 		[[jp_id]] = rows
 		return jp_id
 
-def interned_jpsection(conn, jpsection):
+def interned_jpsection(conn, source_id, jpsection):
 	with conn.cursor() as cur:
 		cur.execute("""
 			SELECT jpsection_id
 			FROM jpsection_intern
-			WHERE jpsection = %s
-		""", (jpsection,))
+			WHERE source_id = %s
+			AND jpsection = %s
+		""", (source_id, jpsection,))
 		rows = list(cur)
 		if len(rows) == 0:
 			cur.execute("""
-				INSERT INTO jpsection_intern(jpsection)
-				VALUES (%s)
+				INSERT INTO jpsection_intern(source_id, jpsection)
+				VALUES (%s, %s)
 				RETURNING jpsection_id
-			""", (jpsection,))
+			""", (source_id, jpsection,))
 			rows = list(cur)
-		[[jp_id]] = rows
-		return jp_id
+		[[jps_id]] = rows
+		return jps_id

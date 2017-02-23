@@ -56,7 +56,7 @@ def add_service(elem, conn, source_id):
 		routeref = maybe_one(jpelem.xpath("./tx:RouteRef/text()", namespaces=NAMESPACES))
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
-			jpintern = interned_journeypattern(conn, jpref)
+			jpintern = interned_journeypattern(conn, source_id, jpref)
 			cur.execute("""
 				INSERT INTO journeypattern_service(source_id, journeypattern_id, servicecode, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
@@ -64,7 +64,7 @@ def add_service(elem, conn, source_id):
 			""", (source_id, jpintern, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
-				jpsectionintern = interned_jpsection(conn, jpsectionref)
+				jpsectionintern = interned_jpsection(conn, source_id, jpsectionref)
 				cur.execute("""
 					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection_id)
 					VALUES (%s, %s, %s)
@@ -74,7 +74,7 @@ def add_service(elem, conn, source_id):
 def add_journeypatternsection(elem, conn, source_id):
 	jpsection = elem.get("id")
 	with conn.cursor() as cur:
-		jpsectionintern = interned_jpsection(conn, jpsection)
+		jpsectionintern = interned_jpsection(conn, source_id, jpsection)
 
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
 		jptiminglink_id = jptl.get("id")
@@ -135,7 +135,7 @@ def add_vehiclejourney(elem, conn, source_id):
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
 	with conn.cursor() as cur:
-		jpintern = interned_journeypattern(conn, jpref_id)
+		jpintern = interned_journeypattern(conn, source_id, jpref_id)
 		cur.execute("""
 			INSERT INTO vehiclejourney(source_id, vjcode, journeypattern_id, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
