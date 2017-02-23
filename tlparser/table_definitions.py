@@ -12,6 +12,25 @@ TABLE_COMMANDS = [
 			source TEXT UNIQUE)
 		"""),
 	("""
+		DROP TABLE IF EXISTS journeypattern_intern;
+		""", """
+		CREATE TABLE IF NOT EXISTS journeypattern_intern (
+			journeypattern_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			journeypattern TEXT NOT NULL,
+			UNIQUE (source_id, journeypattern));
+		"""),
+	("""
+		DROP TABLE IF EXISTS jpsection_intern;
+		""", """
+		CREATE TABLE IF NOT EXISTS jpsection_intern (
+			jpsection_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			jpsection TEXT NOT NULL,
+			UNIQUE (source_id, jpsection));
+		"""),
+
+	("""
 		DROP TABLE IF EXISTS jptiminglink;
 		""", """
 		CREATE TABLE jptiminglink(
@@ -249,24 +268,6 @@ def create_materialized_views(conn):
 			USING gist (bounding_box);
 		""")
 
-
-
-def create_intern_tables(conn):
-	with conn.cursor() as cur:
-		cur.execute("""
-			CREATE TABLE IF NOT EXISTS journeypattern_intern (
-				journeypattern_id SERIAL PRIMARY KEY,
-				source_id INTEGER NOT NULL REFERENCES source(source_id),
-				journeypattern TEXT NOT NULL)
-			UNIQUE (source_id, journeypattern)
-		""")
-		cur.execute("""
-			CREATE TABLE IF NOT EXISTS jpsection_intern (
-				jpsection_id SERIAL PRIMARY KEY,
-				source_id INTEGER NOT NULL REFERENCES source(source_id)
-				jpsection TEXT NOT NULL)
-			UNIQUE (source_id, jpsection)
-		""")
 
 def interned_journeypattern(conn, source_id, journeypattern):
 	with conn.cursor() as cur:
