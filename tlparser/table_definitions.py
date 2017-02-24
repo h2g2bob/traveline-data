@@ -29,13 +29,22 @@ TABLE_COMMANDS = [
 			jpsection TEXT NOT NULL,
 			UNIQUE (source_id, jpsection));
 		"""),
+	("""
+		DROP TABLE IF EXISTS jptiminglink_intern;
+		""", """
+		CREATE TABLE IF NOT EXISTS jptiminglink_intern (
+			jptiminglink_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			jptiminglink TEXT NOT NULL,
+			UNIQUE (source_id, jptiminglink));
+		"""),
 
 	("""
 		DROP TABLE IF EXISTS jptiminglink;
 		""", """
 		CREATE TABLE jptiminglink(
 			source_id INT REFERENCES source(source_id),
-			jptiminglink TEXT PRIMARY KEY,
+			jptiminglink_id INT PRIMARY KEY REFERENCES jptiminglink_intern(jptiminglink_id),
 			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
 			routelink TEXT,
 			runtime TEXT,
@@ -271,40 +280,32 @@ def create_materialized_views(conn):
 		""")
 
 
-def interned_journeypattern(conn, source_id, journeypattern):
+def interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
-		cur.execute("""
-			SELECT journeypattern_id
-			FROM journeypattern_intern
-			WHERE source_id = %s
-			AND journeypattern = %s
-		""", (source_id, journeypattern,))
+		sql = """
+			SELECT %(tablename)s_id
+			FROM %(tablename)s_intern
+			WHERE source_id = %%s
+			AND %(tablename)s = %%s
+		""" % dict(tablename=tablename)
+		cur.execute(sql, (source_id, longname,))
 		rows = list(cur)
 		if len(rows) == 0:
-			cur.execute("""
-				INSERT INTO journeypattern_intern(source_id, journeypattern)
-				VALUES (%s, %s)
-				RETURNING journeypattern_id
-			""", (source_id, journeypattern,))
+			sql = """
+				INSERT INTO %(tablename)s_intern(source_id, %(tablename)s)
+				VALUES (%%s, %%s)
+				RETURNING %(tablename)s_id
+			""" % dict(tablename=tablename)
+			cur.execute(sql, (source_id, longname,))
 			rows = list(cur)
-		[[jp_id]] = rows
-		return jp_id
+		[[short_id]] = rows
+		return short_id
+
+def interned_journeypattern(conn, source_id, journeypattern):
+	return interned('journeypattern', conn, source_id, journeypattern)
 
 def interned_jpsection(conn, source_id, jpsection):
-	with conn.cursor() as cur:
-		cur.execute("""
-			SELECT jpsection_id
-			FROM jpsection_intern
-			WHERE source_id = %s
-			AND jpsection = %s
-		""", (source_id, jpsection,))
-		rows = list(cur)
-		if len(rows) == 0:
-			cur.execute("""
-				INSERT INTO jpsection_intern(source_id, jpsection)
-				VALUES (%s, %s)
-				RETURNING jpsection_id
-			""", (source_id, jpsection,))
-			rows = list(cur)
-		[[jps_id]] = rows
-		return jps_id
+	return interned('jpsection', conn, source_id, jpsection)
+
+def interned_jptiminglink(conn, source_id, jptiminglink):
+	return interned('jptiminglink', conn, source_id, jptiminglink)

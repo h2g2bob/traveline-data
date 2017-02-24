@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern, interned_jpsection
+from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -77,7 +77,7 @@ def add_journeypatternsection(elem, conn, source_id):
 		jpsectionintern = interned_jpsection(conn, source_id, jpsection)
 
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
-		jptiminglink_id = jptl.get("id")
+		jptiminglink = jptl.get("id")
 		routelinkref_id = maybe_one(jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES))
 		[runtime] = jptl.xpath("./tx:RunTime/text()", namespaces=NAMESPACES)
 		from_sequence = maybe_one(jptl.xpath("./tx:From/@SequenceNumber", namespaces=NAMESPACES))
@@ -85,11 +85,11 @@ def add_journeypatternsection(elem, conn, source_id):
 		[from_stoppoint] = jptl.xpath("./tx:From/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
+			jptiminglinkintern = interned_jptiminglink(conn, source_id, jptiminglink)
 			cur.execute("""
-				INSERT INTO jptiminglink(source_id, jptiminglink, jpsection_id, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				INSERT INTO jptiminglink(source_id, jptiminglink_id, jpsection_id, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-				ON CONFLICT DO NOTHING
-			""", (source_id, jptiminglink_id, jpsectionintern, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
 def add_vehiclejourney(elem, conn, source_id):
 	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
