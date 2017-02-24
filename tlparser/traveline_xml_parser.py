@@ -60,7 +60,6 @@ def add_service(elem, conn, source_id):
 			cur.execute("""
 				INSERT INTO journeypattern_service(source_id, journeypattern_id, servicecode, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
-				ON CONFLICT DO NOTHING
 			""", (source_id, jpintern, servicecode, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
@@ -68,7 +67,6 @@ def add_service(elem, conn, source_id):
 				cur.execute("""
 					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection_id)
 					VALUES (%s, %s, %s)
-					ON CONFLICT DO NOTHING
 				""", (source_id, jpintern, jpsectionintern))
 
 def add_journeypatternsection(elem, conn, source_id):
