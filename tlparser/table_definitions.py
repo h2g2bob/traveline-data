@@ -38,6 +38,15 @@ TABLE_COMMANDS = [
 			jptiminglink TEXT NOT NULL,
 			UNIQUE (source_id, jptiminglink));
 		"""),
+	("""
+		DROP TABLE IF EXISTS vjcode_intern;
+		""", """
+		CREATE TABLE IF NOT EXISTS vjcode_intern (
+			vjcode_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			vjcode TEXT NOT NULL,
+			UNIQUE (source_id, vjcode));
+		"""),
 
 	("""
 		DROP TABLE IF EXISTS jptiminglink;
@@ -57,9 +66,9 @@ TABLE_COMMANDS = [
 		DROP TABLE IF EXISTS vehiclejourney;
 		""", """
 		CREATE TABLE vehiclejourney(
-			source_id INT REFERENCES source(source_id),
-			vjcode TEXT PRIMARY KEY,
-			other_vjcode TEXT,
+			source_id INT NOT NULL REFERENCES source(source_id),
+			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
+			other_vjcode_id INT REFERENCES vjcode_intern(vjcode_id),
 			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
 			line_id TEXT,
 			privatecode TEXT,
@@ -233,7 +242,7 @@ def create_materialized_views(conn):
 				sum(case when vj.deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
 				sum(case when vj.deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
 			FROM vehiclejourney vj
-			LEFT JOIN vehiclejourney other ON vj.other_vjcode = other.vjcode
+			LEFT JOIN vehiclejourney other ON vj.other_vjcode_id = other.vjcode_id
 			GROUP BY 1,2,3;
 		""")
 
@@ -309,3 +318,6 @@ def interned_jpsection(conn, source_id, jpsection):
 
 def interned_jptiminglink(conn, source_id, jptiminglink):
 	return interned('jptiminglink', conn, source_id, jptiminglink)
+
+def interned_vjcode(conn, source_id, vjcode):
+	return interned('vjcode', conn, source_id, vjcode)

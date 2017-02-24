@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink
+from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -92,7 +92,7 @@ def add_journeypatternsection(elem, conn, source_id):
 			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
 def add_vehiclejourney(elem, conn, source_id):
-	[vjcode_id] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
+	[vjcode] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 
 	# a vehiclejourney will either have a reference to a journeypattern...
 	jpref_id = maybe_one(elem.xpath("./tx:JourneyPatternRef/text()", namespaces=NAMESPACES))
@@ -101,8 +101,8 @@ def add_vehiclejourney(elem, conn, source_id):
 	# (let's check this is really true...)
 	assert (
 		(other_vjcode is None and jpref_id is not None) or
-		(other_vjcode == vjcode_id and jpref_id is not None) or
-		(other_vjcode != vjcode_id and jpref_id is None))
+		(other_vjcode == vjcode and jpref_id is not None) or
+		(other_vjcode != vjcode and jpref_id is None))
 
 	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
@@ -146,10 +146,12 @@ def add_vehiclejourney(elem, conn, source_id):
 
 	with conn.cursor() as cur:
 		jpintern = interned_journeypattern(conn, source_id, jpref_id) if jpref_id is not None else None
+		vjintern = interned_vjcode(conn, source_id, vjcode) if vjcode is not None else None
+		othervjintern = interned_vjcode(conn, source_id, other_vjcode) if other_vjcode is not None else None
 		cur.execute("""
-			INSERT INTO vehiclejourney(source_id, vjcode, other_vjcode, journeypattern_id, line_id, privatecode, days_mask, deptime, deptime_seconds)
+			INSERT INTO vehiclejourney(source_id, vjcode_id, other_vjcode_id, journeypattern_id, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
-		""", (source_id, vjcode_id, other_vjcode, jpintern, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
+		""", (source_id, vjintern, othervjintern, jpintern, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
 def add_route(elem, conn, source_id):
 	route_id = elem.get("id")
