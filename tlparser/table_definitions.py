@@ -50,6 +50,7 @@ TABLE_COMMANDS = [
 		CREATE TABLE vehiclejourney(
 			source_id INT REFERENCES source(source_id),
 			vjcode TEXT PRIMARY KEY,
+			other_vjcode TEXT,
 			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
 			line_id TEXT,
 			privatecode TEXT,
@@ -195,34 +196,35 @@ def create_materialized_views(conn):
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
-				journeypattern_id,
-				line_id,
-				days_mask,
-				sum(case when deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
-				sum(case when deptime_seconds / 3600 = 1 then 1 else 0 end) as hour_1,
-				sum(case when deptime_seconds / 3600 = 2 then 1 else 0 end) as hour_2,
-				sum(case when deptime_seconds / 3600 = 3 then 1 else 0 end) as hour_3,
-				sum(case when deptime_seconds / 3600 = 4 then 1 else 0 end) as hour_4,
-				sum(case when deptime_seconds / 3600 = 5 then 1 else 0 end) as hour_5,
-				sum(case when deptime_seconds / 3600 = 6 then 1 else 0 end) as hour_6,
-				sum(case when deptime_seconds / 3600 = 7 then 1 else 0 end) as hour_7,
-				sum(case when deptime_seconds / 3600 = 8 then 1 else 0 end) as hour_8,
-				sum(case when deptime_seconds / 3600 = 9 then 1 else 0 end) as hour_9,
-				sum(case when deptime_seconds / 3600 = 10 then 1 else 0 end) as hour_10,
-				sum(case when deptime_seconds / 3600 = 11 then 1 else 0 end) as hour_11,
-				sum(case when deptime_seconds / 3600 = 12 then 1 else 0 end) as hour_12,
-				sum(case when deptime_seconds / 3600 = 13 then 1 else 0 end) as hour_13,
-				sum(case when deptime_seconds / 3600 = 14 then 1 else 0 end) as hour_14,
-				sum(case when deptime_seconds / 3600 = 15 then 1 else 0 end) as hour_15,
-				sum(case when deptime_seconds / 3600 = 16 then 1 else 0 end) as hour_16,
-				sum(case when deptime_seconds / 3600 = 17 then 1 else 0 end) as hour_17,
-				sum(case when deptime_seconds / 3600 = 18 then 1 else 0 end) as hour_18,
-				sum(case when deptime_seconds / 3600 = 19 then 1 else 0 end) as hour_19,
-				sum(case when deptime_seconds / 3600 = 20 then 1 else 0 end) as hour_20,
-				sum(case when deptime_seconds / 3600 = 21 then 1 else 0 end) as hour_21,
-				sum(case when deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
-				sum(case when deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
-			FROM vehiclejourney
+				coalesce(vj.journeypattern_id, other.journeypattern_id),
+				vj.line_id,
+				vj.days_mask,
+				sum(case when vj.deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
+				sum(case when vj.deptime_seconds / 3600 = 1 then 1 else 0 end) as hour_1,
+				sum(case when vj.deptime_seconds / 3600 = 2 then 1 else 0 end) as hour_2,
+				sum(case when vj.deptime_seconds / 3600 = 3 then 1 else 0 end) as hour_3,
+				sum(case when vj.deptime_seconds / 3600 = 4 then 1 else 0 end) as hour_4,
+				sum(case when vj.deptime_seconds / 3600 = 5 then 1 else 0 end) as hour_5,
+				sum(case when vj.deptime_seconds / 3600 = 6 then 1 else 0 end) as hour_6,
+				sum(case when vj.deptime_seconds / 3600 = 7 then 1 else 0 end) as hour_7,
+				sum(case when vj.deptime_seconds / 3600 = 8 then 1 else 0 end) as hour_8,
+				sum(case when vj.deptime_seconds / 3600 = 9 then 1 else 0 end) as hour_9,
+				sum(case when vj.deptime_seconds / 3600 = 10 then 1 else 0 end) as hour_10,
+				sum(case when vj.deptime_seconds / 3600 = 11 then 1 else 0 end) as hour_11,
+				sum(case when vj.deptime_seconds / 3600 = 12 then 1 else 0 end) as hour_12,
+				sum(case when vj.deptime_seconds / 3600 = 13 then 1 else 0 end) as hour_13,
+				sum(case when vj.deptime_seconds / 3600 = 14 then 1 else 0 end) as hour_14,
+				sum(case when vj.deptime_seconds / 3600 = 15 then 1 else 0 end) as hour_15,
+				sum(case when vj.deptime_seconds / 3600 = 16 then 1 else 0 end) as hour_16,
+				sum(case when vj.deptime_seconds / 3600 = 17 then 1 else 0 end) as hour_17,
+				sum(case when vj.deptime_seconds / 3600 = 18 then 1 else 0 end) as hour_18,
+				sum(case when vj.deptime_seconds / 3600 = 19 then 1 else 0 end) as hour_19,
+				sum(case when vj.deptime_seconds / 3600 = 20 then 1 else 0 end) as hour_20,
+				sum(case when vj.deptime_seconds / 3600 = 21 then 1 else 0 end) as hour_21,
+				sum(case when vj.deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
+				sum(case when vj.deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
+			FROM vehiclejourney vj
+			LEFT JOIN vehiclejourney other ON vj.other_vjcode = other.vjcode
 			GROUP BY 1,2,3;
 		""")
 
