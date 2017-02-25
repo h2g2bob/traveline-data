@@ -27,6 +27,8 @@ TABLE_COMMANDS = [
 	_table_command_intern("jpsection"),
 	_table_command_intern("jptiminglink"),
 	_table_command_intern("vjcode"),
+	_table_command_intern("line"),
+	_table_command_intern("service"),
 
 	("""
 		DROP TABLE IF EXISTS jptiminglink;
@@ -50,7 +52,7 @@ TABLE_COMMANDS = [
 			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
 			other_vjcode_id INT REFERENCES vjcode_intern(vjcode_id),
 			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			line_id TEXT,
+			line_id INT,
 			privatecode TEXT,
 			days_mask INT,
 			deptime TEXT,
@@ -61,7 +63,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE service(
 			source_id INT REFERENCES source(source_id),
-			servicecode TEXT PRIMARY KEY,
+			service_id INT PRIMARY KEY REFERENCES service_intern(service_id),
 			privatecode TEXT,
 			mode TEXT,
 			operator_id TEXT,
@@ -72,7 +74,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE line(
 			source_id INT REFERENCES source(source_id),
-			line_id TEXT PRIMARY KEY,
+			line_id INT PRIMARY KEY REFERENCES line(line_id),
 			servicecode TEXT,
 			line_name TEXT);
 		"""),
@@ -82,7 +84,7 @@ TABLE_COMMANDS = [
 		CREATE TABLE journeypattern_service(
 			source_id INT REFERENCES source(source_id),
 			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
-			servicecode TEXT,
+			service_id INT,
 			route TEXT,
 			direction TEXT);
 		"""),
@@ -301,3 +303,9 @@ def interned_jptiminglink(conn, source_id, jptiminglink):
 
 def interned_vjcode(conn, source_id, vjcode):
 	return _interned('vjcode', conn, source_id, vjcode)
+
+def interned_service(conn, source_id, service):
+	return _interned('service', conn, source_id, service)
+
+def interned_line(conn, source_id, line):
+	return _interned('line', conn, source_id, line)

@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode
+from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode, interned_service, interned_line
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -34,20 +34,20 @@ def add_service(elem, conn, source_id):
 	[operator] = elem.xpath("./tx:RegisteredOperatorRef/text()", namespaces=NAMESPACES)
 
 	with conn.cursor() as cur:
+		service_id = interned_service(conn, source_id, servicecode)
 		cur.execute("""
-			INSERT INTO service(source_id, servicecode, privatecode, mode, operator_id, description)
+			INSERT INTO service(source_id, service_id, privatecode, mode, operator_id, description)
 			VALUES (%s, %s, %s, %s, %s, %s)
-			ON CONFLICT DO NOTHING
-		""", (source_id, servicecode, privatecode, mode, operator, description))
+		""", (source_id, service_id, privatecode, mode, operator, description))
 
 	for lineelem in elem.xpath("./tx:Lines/tx:Line", namespaces=NAMESPACES):
-		line_id = lineelem.get("id")
+		linecode = lineelem.get("id")
 		[line_name] = lineelem.xpath("./tx:LineName/text()", namespaces=NAMESPACES)	
 		with conn.cursor() as cur:
+			line_id = interned_line(conn, source_id, linecode)
 			cur.execute("""
 				INSERT INTO line(source_id, line_id, servicecode, line_name)
 				VALUES (%s, %s, %s, %s)
-				ON CONFLICT DO NOTHING
 			""", (source_id, line_id, servicecode, line_name))
 
 	for jpelem in elem.xpath("./tx:StandardService/tx:JourneyPattern", namespaces=NAMESPACES):
@@ -58,9 +58,9 @@ def add_service(elem, conn, source_id):
 		with conn.cursor() as cur:
 			jpintern = interned_journeypattern(conn, source_id, jpref)
 			cur.execute("""
-				INSERT INTO journeypattern_service(source_id, journeypattern_id, servicecode, route, direction)
+				INSERT INTO journeypattern_service(source_id, journeypattern_id, service_id, route, direction)
 				VALUES (%s, %s, %s, %s, %s)
-			""", (source_id, jpintern, servicecode, routeref, direction))
+			""", (source_id, jpintern, service_id, routeref, direction))
 
 			for jpsectionref in jpsectionrefs:
 				jpsectionintern = interned_jpsection(conn, source_id, jpsectionref)
@@ -102,7 +102,7 @@ def add_vehiclejourney(elem, conn, source_id):
 		(other_vjcode == vjcode and jpref_id is not None) or
 		(other_vjcode != vjcode and jpref_id is None))
 
-	[line_id] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
+	[linecode] = elem.xpath("./tx:LineRef/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[departuretime] = elem.xpath("./tx:DepartureTime/text()", namespaces=NAMESPACES)
 
@@ -145,11 +145,12 @@ def add_vehiclejourney(elem, conn, source_id):
 	with conn.cursor() as cur:
 		jpintern = interned_journeypattern(conn, source_id, jpref_id) if jpref_id is not None else None
 		vjintern = interned_vjcode(conn, source_id, vjcode) if vjcode is not None else None
+		lineintern = interned_line(conn, source_id, linecode)
 		othervjintern = interned_vjcode(conn, source_id, other_vjcode) if other_vjcode is not None else None
 		cur.execute("""
 			INSERT INTO vehiclejourney(source_id, vjcode_id, other_vjcode_id, journeypattern_id, line_id, privatecode, days_mask, deptime, deptime_seconds)
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
-		""", (source_id, vjintern, othervjintern, jpintern, line_id, privatecode, days_bitmask, departuretime, departuretime_seconds))
+		""", (source_id, vjintern, othervjintern, jpintern, lineintern, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
 def add_route(elem, conn, source_id):
 	route_id = elem.get("id")
