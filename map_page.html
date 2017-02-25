@@ -30,6 +30,15 @@ svg path[frequency=low] {
 	opacity: 0.1;
 }
 
+svg circle.stop {
+	opacity: 0;
+	fill: #ffff80;
+	stroke: none;
+}
+svg circle.stop:hover {
+	opacity: 0.5;
+}
+
 .fullscreen {
 	height: 100vh;
 	width: 100vw;
@@ -49,6 +58,14 @@ svg path[frequency=low] {
 #controls button {
 	width: 10vw;
 	height: 10vh;
+}
+
+#stop_name {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	background: #000000;
+	color: #00cc00;
 }
 
 </style>
@@ -229,6 +246,24 @@ TLDataPaint.prototype = {
 				}
 			}
 		});
+		for (var key in data["stops"]) {
+			if (!data["stops"].hasOwnProperty(key)) {
+				continue;
+			}
+			var stop_id = "stop_" + key;
+			var stop = data["stops"][key];
+			if (document.getElementById(stop_id) === null) {
+				var circ = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+				circ.setAttribute("id", stop_id);
+				circ.setAttribute("cx", this.scale(stop["lng"]));
+				circ.setAttribute("cy", this.scale(stop["lat"]));
+				circ.setAttribute("r", 5);
+				circ.setAttribute("class", "stop");
+				circ.setAttribute("data-stop-id", key);
+				circ.setAttribute("data-stop-name", stop["name"]);
+				paint.svg.appendChild(circ);
+			}
+		};
 	},
 
 	clear: function() {
@@ -242,7 +277,18 @@ TLDataPaint.prototype = {
 		if (path == undefined) {
 			var path = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			path.setAttribute("id", name);
-			this.svg.appendChild(path);
+			path.setAttribute("class", "debug-download-indication");
+
+			// add this at the top of the element list, so that it gets rendered first
+			// ie: underneath the stops, which have user interaction
+			// this is ugly because most browsers ignore z-index in svg:
+			// https://developer.mozilla.org/en-US/docs/Web/SVG/SVG_2_support_in_Mozilla#Painting
+			// oh, and insertChild cannot have a null option, fuck you w3c
+			if (this.svg.firstChild !== undefined) {
+				this.svg.insertBefore(path, this.svg.firstChild);
+			} else {
+				this.svg.appendChild(path);
+			}
 		}
 		path.setAttribute("y", this.scale(box.minlat));
 		path.setAttribute("x", this.scale(box.minlng));
@@ -362,6 +408,16 @@ window.addEventListener("load", function () {
 		window.travelinedatamap.lng += step_size/window.travelinedatamap.paint.zoom;
 		window.travelinedatamap.pan();
 	});
+
+	window.addEventListener("mouseover", function (event) {
+		if (event.target) {
+			var stop_id = event.target.getAttribute("data-stop-id");
+			var stop_name = event.target.getAttribute("data-stop-name");
+			if (stop_name) {
+				document.getElementById("stop_name").textContent = stop_id + ": " + stop_name;
+			}
+		}
+	});
 });
 
 
@@ -374,4 +430,5 @@ window.addEventListener("load", function () {
 	</g>
 </svg></div>
 <div id="controls"></div>
+<div id="stop_name"></div>
 </body>

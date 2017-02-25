@@ -122,6 +122,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			cur.execute("""
 				SELECT
 					atcocode,
+					name,
 					latitude,
 					longitude
 				FROM
@@ -129,8 +130,9 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 
 				WHERE atcocode IN %s
 			""", (tuple(atcocode_list) or ('nothing',),))
-			for stop_id, latitude, longitude in cur:
+			for stop_id, name, latitude, longitude in cur:
 				bus_stops[stop_id] = {
+					"name": name,
 					"lat": latitude,
 					"lng": longitude}
 
