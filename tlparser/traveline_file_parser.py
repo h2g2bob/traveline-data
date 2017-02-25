@@ -50,6 +50,11 @@ def process_zipfile(conn, zip_filename):
 							logging.exception("Skipping file %s (%r)", source, source_id)
 
 def source_id_if_not_already_inserted(conn, source):
+	# Only do the southend area
+	USE_TESTING_DATA_ONLY = False
+	if USE_TESTING_DATA_ONLY and not source.startswith("SE.zip/set_5-"):
+		return None
+
 	with conn.cursor() as cur:
 		cur.execute("""
 			insert into source(source) values (%s)
