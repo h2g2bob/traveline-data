@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode, interned_service, interned_line
+from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode, interned_service, interned_line, interned_route, interned_routelink
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -57,10 +57,11 @@ def add_service(elem, conn, source_id):
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			jpintern = interned_journeypattern(conn, source_id, jpref)
+			routeintern = interned_route(conn, source_id, routeref)
 			cur.execute("""
-				INSERT INTO journeypattern_service(source_id, journeypattern_id, service_id, route, direction)
+				INSERT INTO journeypattern_service(source_id, journeypattern_id, service_id, route_id, direction)
 				VALUES (%s, %s, %s, %s, %s)
-			""", (source_id, jpintern, service_id, routeref, direction))
+			""", (source_id, jpintern, service_id, routeintern, direction))
 
 			for jpsectionref in jpsectionrefs:
 				jpsectionintern = interned_jpsection(conn, source_id, jpsectionref)
@@ -76,7 +77,7 @@ def add_journeypatternsection(elem, conn, source_id):
 
 	for jptl in elem.xpath("./tx:JourneyPatternTimingLink", namespaces=NAMESPACES):
 		jptiminglink = jptl.get("id")
-		routelinkref_id = maybe_one(jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES))
+		routelinkref = maybe_one(jptl.xpath("./tx:RouteLinkRef/text()", namespaces=NAMESPACES))
 		[runtime] = jptl.xpath("./tx:RunTime/text()", namespaces=NAMESPACES)
 		from_sequence = maybe_one(jptl.xpath("./tx:From/@SequenceNumber", namespaces=NAMESPACES))
 		to_sequence = maybe_one(jptl.xpath("./tx:To/@SequenceNumber", namespaces=NAMESPACES))
@@ -84,10 +85,11 @@ def add_journeypatternsection(elem, conn, source_id):
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			jptiminglinkintern = interned_jptiminglink(conn, source_id, jptiminglink)
+			routelinkintern = interned_routelink(conn, source_id, routelinkref)
 			cur.execute("""
-				INSERT INTO jptiminglink(source_id, jptiminglink_id, jpsection_id, routelink, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
+				INSERT INTO jptiminglink(source_id, jptiminglink_id, jpsection_id, routelink_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkref_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkintern, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
 
 def add_vehiclejourney(elem, conn, source_id):
 	[vjcode] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
@@ -153,32 +155,32 @@ def add_vehiclejourney(elem, conn, source_id):
 		""", (source_id, vjintern, othervjintern, jpintern, lineintern, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
 def add_route(elem, conn, source_id):
-	route_id = elem.get("id")
+	routecode = elem.get("id")
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
 	[routesection] = elem.xpath("./tx:RouteSectionRef/text()", namespaces=NAMESPACES)
 
 	with conn.cursor() as cur:
+		route_id = interned_route(conn, source_id, routecode)
 		cur.execute("""
 			INSERT INTO route(source_id, route_id, privatecode, routesection, description)
 			VALUES (%s, %s, %s, %s, %s)
-			ON CONFLICT DO NOTHING
 		""", (source_id, route_id, privatecode, routesection, description,))
 
 def add_routesection(elem, conn, source_id):
 	routesection = elem.get("id")
 	for linkelem in elem.xpath("./tx:RouteLink", namespaces=NAMESPACES):
-		routelink = linkelem.get("id")
+		routelinkcode = linkelem.get("id")
 		[from_stoppoint] = linkelem.xpath("./tx:From/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		[to_stoppoint] = linkelem.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		[direction] = linkelem.xpath("./tx:Direction/text()", namespaces=NAMESPACES)
 
 		with conn.cursor() as cur:
+			routelink_id = interned_routelink(conn, source_id, routelinkcode)
 			cur.execute("""
-				INSERT INTO routelink(source_id, routelink, routesection, from_stoppoint, to_stoppoint, direction)
+				INSERT INTO routelink(source_id, routelink_id, routesection, from_stoppoint, to_stoppoint, direction)
 				VALUES (%s, %s, %s, %s, %s, %s)
-				ON CONFLICT DO NOTHING
-			""", (source_id, routelink, routesection, from_stoppoint, to_stoppoint, direction,))
+			""", (source_id, routelink_id, routesection, from_stoppoint, to_stoppoint, direction,))
 
 def add_stoppoint(elem, conn, source_id):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)

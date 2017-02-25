@@ -29,6 +29,8 @@ TABLE_COMMANDS = [
 	_table_command_intern("vjcode"),
 	_table_command_intern("line"),
 	_table_command_intern("service"),
+	_table_command_intern("route"),
+	_table_command_intern("routelink"),
 
 	("""
 		DROP TABLE IF EXISTS jptiminglink;
@@ -85,7 +87,7 @@ TABLE_COMMANDS = [
 			source_id INT REFERENCES source(source_id),
 			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
 			service_id INT NOT NULL REFERENCES service(service_id),
-			route TEXT,
+			route_id INT NOT NULL REFERENCES route(route_id),
 			direction TEXT);
 		"""),
 	("""
@@ -110,7 +112,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE route(
 			source_id INT REFERENCES source(source_id),
-			route_id TEXT PRIMARY KEY,
+			route_id INT PRIMARY KEY REFERENCES route_intern(route_id),
 			privatecode TEXT,
 			routesection TEXT,
 			description TEXT);
@@ -120,7 +122,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE routelink(
 			source_id INT REFERENCES source(source_id),
-			routelink TEXT PRIMARY KEY,
+			routelink_id INT PRIMARY KEY REFERENCES routelink(routelink_id),
 			routesection TEXT,
 			from_stoppoint TEXT,
 			to_stoppoint TEXT,
@@ -309,3 +311,9 @@ def interned_service(conn, source_id, service):
 
 def interned_line(conn, source_id, line):
 	return _interned('line', conn, source_id, line)
+
+def interned_route(conn, source_id, route):
+	return _interned('route', conn, source_id, route)
+
+def interned_routelink(conn, source_id, routelink):
+	return _interned('routelink', conn, source_id, routelink)
