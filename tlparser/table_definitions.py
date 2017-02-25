@@ -3,6 +3,17 @@
 
 import logging
 
+def _table_command_intern(tablename):
+	return ("""
+		DROP TABLE IF EXISTS %(tablename)s_intern;
+		""" % dict(tablename=tablename), """
+		CREATE TABLE IF NOT EXISTS %(tablename)s_intern (
+			%(tablename)s_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			%(tablename)s TEXT NOT NULL,
+			UNIQUE (source_id, %(tablename)s));
+		""" % dict(tablename=tablename))
+
 TABLE_COMMANDS = [
 	("""
 		DROP TABLE IF EXISTS source;
@@ -11,42 +22,11 @@ TABLE_COMMANDS = [
 			source_id SERIAL PRIMARY KEY,
 			source TEXT UNIQUE)
 		"""),
-	("""
-		DROP TABLE IF EXISTS journeypattern_intern;
-		""", """
-		CREATE TABLE IF NOT EXISTS journeypattern_intern (
-			journeypattern_id SERIAL PRIMARY KEY,
-			source_id INTEGER NOT NULL REFERENCES source(source_id),
-			journeypattern TEXT NOT NULL,
-			UNIQUE (source_id, journeypattern));
-		"""),
-	("""
-		DROP TABLE IF EXISTS jpsection_intern;
-		""", """
-		CREATE TABLE IF NOT EXISTS jpsection_intern (
-			jpsection_id SERIAL PRIMARY KEY,
-			source_id INTEGER NOT NULL REFERENCES source(source_id),
-			jpsection TEXT NOT NULL,
-			UNIQUE (source_id, jpsection));
-		"""),
-	("""
-		DROP TABLE IF EXISTS jptiminglink_intern;
-		""", """
-		CREATE TABLE IF NOT EXISTS jptiminglink_intern (
-			jptiminglink_id SERIAL PRIMARY KEY,
-			source_id INTEGER NOT NULL REFERENCES source(source_id),
-			jptiminglink TEXT NOT NULL,
-			UNIQUE (source_id, jptiminglink));
-		"""),
-	("""
-		DROP TABLE IF EXISTS vjcode_intern;
-		""", """
-		CREATE TABLE IF NOT EXISTS vjcode_intern (
-			vjcode_id SERIAL PRIMARY KEY,
-			source_id INTEGER NOT NULL REFERENCES source(source_id),
-			vjcode TEXT NOT NULL,
-			UNIQUE (source_id, vjcode));
-		"""),
+
+	_table_command_intern("journeypattern"),
+	_table_command_intern("jpsection"),
+	_table_command_intern("jptiminglink"),
+	_table_command_intern("vjcode"),
 
 	("""
 		DROP TABLE IF EXISTS jptiminglink;
@@ -289,7 +269,7 @@ def create_materialized_views(conn):
 		""")
 
 
-def interned(tablename, conn, source_id, longname):
+def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
 		sql = """
 			SELECT %(tablename)s_id
@@ -311,13 +291,13 @@ def interned(tablename, conn, source_id, longname):
 		return short_id
 
 def interned_journeypattern(conn, source_id, journeypattern):
-	return interned('journeypattern', conn, source_id, journeypattern)
+	return _interned('journeypattern', conn, source_id, journeypattern)
 
 def interned_jpsection(conn, source_id, jpsection):
-	return interned('jpsection', conn, source_id, jpsection)
+	return _interned('jpsection', conn, source_id, jpsection)
 
 def interned_jptiminglink(conn, source_id, jptiminglink):
-	return interned('jptiminglink', conn, source_id, jptiminglink)
+	return _interned('jptiminglink', conn, source_id, jptiminglink)
 
 def interned_vjcode(conn, source_id, vjcode):
-	return interned('vjcode', conn, source_id, vjcode)
+	return _interned('vjcode', conn, source_id, vjcode)
