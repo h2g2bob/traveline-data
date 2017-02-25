@@ -197,7 +197,7 @@ def create_materialized_views(conn):
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
-				coalesce(vj.journeypattern_id, other.journeypattern_id),
+				coalesce(vj.journeypattern_id, other.journeypattern_id) AS journeypattern_id,
 				vj.line_id,
 				vj.days_mask,
 				sum(case when vj.deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
