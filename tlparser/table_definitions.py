@@ -52,7 +52,7 @@ TABLE_COMMANDS = [
 			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
 			other_vjcode_id INT REFERENCES vjcode_intern(vjcode_id),
 			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			line_id INT,
+			line_id INT NOT NULL REFERENCES line(line_id),
 			privatecode TEXT,
 			days_mask INT,
 			deptime TEXT,
@@ -84,7 +84,7 @@ TABLE_COMMANDS = [
 		CREATE TABLE journeypattern_service(
 			source_id INT REFERENCES source(source_id),
 			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
-			service_id INT,
+			service_id INT NOT NULL REFERENCES service(service_id),
 			route TEXT,
 			direction TEXT);
 		"""),

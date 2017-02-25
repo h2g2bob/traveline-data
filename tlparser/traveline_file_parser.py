@@ -34,6 +34,11 @@ def process_zipfile(conn, zip_filename):
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
 			with conn as transaction_conn:
+
+				# We don't know if we'll be told about things in the correct order
+				# but each file should be self-consistent
+				conn.execute("SET CONSTRAINTS ALL DEFERRED;")
+
 				source_id = source_id_if_not_already_inserted(transaction_conn, source)
 				if source_id:
 					with container.open(contentname) as xmlfile:
