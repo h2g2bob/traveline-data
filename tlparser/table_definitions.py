@@ -33,7 +33,7 @@ TABLE_COMMANDS = [
 	_table_command_intern("routelink"),
 
 	("""
-		DROP TABLE IF EXISTS routelink;
+		DROP TABLE IF EXISTS routelink CASCADE;
 		""", """
 		CREATE TABLE routelink(
 			source_id INT REFERENCES source(source_id),
@@ -44,7 +44,7 @@ TABLE_COMMANDS = [
 			direction TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS service;
+		DROP TABLE IF EXISTS service CASCADE;
 		""", """
 		CREATE TABLE service(
 			source_id INT REFERENCES source(source_id),
@@ -55,7 +55,7 @@ TABLE_COMMANDS = [
 			description TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS route;
+		DROP TABLE IF EXISTS route CASCADE;
 		""", """
 		CREATE TABLE route(
 			source_id INT REFERENCES source(source_id),
@@ -65,7 +65,7 @@ TABLE_COMMANDS = [
 			description TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS journeypattern_service;
+		DROP TABLE IF EXISTS journeypattern_service CASCADE;
 		""", """
 		CREATE TABLE journeypattern_service(
 			source_id INT REFERENCES source(source_id),
@@ -75,7 +75,7 @@ TABLE_COMMANDS = [
 			direction TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS journeypattern_service_section;
+		DROP TABLE IF EXISTS journeypattern_service_section CASCADE;
 		""", """
 		CREATE TABLE journeypattern_service_section(
 			source_id INT REFERENCES source(source_id),
@@ -83,7 +83,7 @@ TABLE_COMMANDS = [
 			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id) DEFERRABLE)
 		"""),
 	("""
-		DROP TABLE IF EXISTS jptiminglink;
+		DROP TABLE IF EXISTS jptiminglink CASCADE;
 		""", """
 		CREATE TABLE jptiminglink(
 			source_id INT REFERENCES source(source_id),
@@ -97,7 +97,7 @@ TABLE_COMMANDS = [
 			to_stoppoint TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS line;
+		DROP TABLE IF EXISTS line CASCADE;
 		""", """
 		CREATE TABLE line(
 			source_id INT REFERENCES source(source_id),
@@ -106,7 +106,7 @@ TABLE_COMMANDS = [
 			line_name TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS vehiclejourney;
+		DROP TABLE IF EXISTS vehiclejourney CASCADE;
 		""", """
 		CREATE TABLE vehiclejourney(
 			source_id INT NOT NULL REFERENCES source(source_id),
@@ -120,7 +120,7 @@ TABLE_COMMANDS = [
 			deptime_seconds INT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS operator;
+		DROP TABLE IF EXISTS operator CASCADE;
 		""", """
 		CREATE TABLE operator(
 			source_id INT REFERENCES source(source_id),
@@ -128,7 +128,7 @@ TABLE_COMMANDS = [
 			shortname TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS stoppoint;
+		DROP TABLE IF EXISTS stoppoint CASCADE;
 		""", """
 		CREATE TABLE stoppoint(
 			source_id INT REFERENCES source(source_id),
