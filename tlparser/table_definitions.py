@@ -33,32 +33,15 @@ TABLE_COMMANDS = [
 	_table_command_intern("routelink"),
 
 	("""
-		DROP TABLE IF EXISTS jptiminglink;
+		DROP TABLE IF EXISTS routelink;
 		""", """
-		CREATE TABLE jptiminglink(
+		CREATE TABLE routelink(
 			source_id INT REFERENCES source(source_id),
-			jptiminglink_id INT PRIMARY KEY REFERENCES jptiminglink_intern(jptiminglink_id),
-			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
-			routelink TEXT,
-			runtime TEXT,
-			from_sequence INT,
+			routelink_id INT PRIMARY KEY REFERENCES routelink_intern(routelink_id),
+			routesection TEXT,
 			from_stoppoint TEXT,
-			to_sequence INT,
-			to_stoppoint TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS vehiclejourney;
-		""", """
-		CREATE TABLE vehiclejourney(
-			source_id INT NOT NULL REFERENCES source(source_id),
-			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
-			other_vjcode_id INT REFERENCES vjcode_intern(vjcode_id),
-			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			line_id INT NOT NULL REFERENCES line(line_id),
-			privatecode TEXT,
-			days_mask INT,
-			deptime TEXT,
-			deptime_seconds INT);
+			to_stoppoint TEXT,
+			direction TEXT);
 		"""),
 	("""
 		DROP TABLE IF EXISTS service;
@@ -72,42 +55,6 @@ TABLE_COMMANDS = [
 			description TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS line;
-		""", """
-		CREATE TABLE line(
-			source_id INT REFERENCES source(source_id),
-			line_id INT PRIMARY KEY REFERENCES line(line_id),
-			servicecode TEXT,
-			line_name TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS journeypattern_service;
-		""", """
-		CREATE TABLE journeypattern_service(
-			source_id INT REFERENCES source(source_id),
-			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
-			service_id INT NOT NULL REFERENCES service(service_id),
-			route_id INT NOT NULL REFERENCES route(route_id),
-			direction TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS journeypattern_service_section;
-		""", """
-		CREATE TABLE journeypattern_service_section(
-			source_id INT REFERENCES source(source_id),
-			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
-			PRIMARY KEY (journeypattern_id, jpsection_id));
-		"""),
-	("""
-		DROP TABLE IF EXISTS operator;
-		""", """
-		CREATE TABLE operator(
-			source_id INT REFERENCES source(source_id),
-			operator_id TEXT PRIMARY KEY,
-			shortname TEXT);
-		"""),
-	("""
 		DROP TABLE IF EXISTS route;
 		""", """
 		CREATE TABLE route(
@@ -118,15 +65,67 @@ TABLE_COMMANDS = [
 			description TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS routelink;
+		DROP TABLE IF EXISTS journeypattern_service;
 		""", """
-		CREATE TABLE routelink(
+		CREATE TABLE journeypattern_service(
 			source_id INT REFERENCES source(source_id),
-			routelink_id INT PRIMARY KEY REFERENCES routelink(routelink_id),
-			routesection TEXT,
-			from_stoppoint TEXT,
-			to_stoppoint TEXT,
+			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
+			service_id INT NOT NULL REFERENCES service(service_id) DEFERRABLE,
+			route_id INT REFERENCES route(route_id) DEFERRABLE,
 			direction TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS journeypattern_service_section;
+		""", """
+		CREATE TABLE journeypattern_service_section(
+			source_id INT REFERENCES source(source_id),
+			jpsection_id INT PRIMARY KEY REFERENCES jpsection_intern(jpsection_id),
+			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id) DEFERRABLE)
+		"""),
+	("""
+		DROP TABLE IF EXISTS jptiminglink;
+		""", """
+		CREATE TABLE jptiminglink(
+			source_id INT REFERENCES source(source_id),
+			jptiminglink_id INT PRIMARY KEY REFERENCES jptiminglink_intern(jptiminglink_id),
+			jpsection_id INT REFERENCES journeypattern_service_section(jpsection_id) DEFERRABLE,
+			routelink_id INT REFERENCES routelink(routelink_id) DEFERRABLE,
+			runtime TEXT,
+			from_sequence INT,
+			from_stoppoint TEXT,
+			to_sequence INT,
+			to_stoppoint TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS line;
+		""", """
+		CREATE TABLE line(
+			source_id INT REFERENCES source(source_id),
+			line_id INT PRIMARY KEY REFERENCES line_intern(line_id),
+			servicecode TEXT,
+			line_name TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS vehiclejourney;
+		""", """
+		CREATE TABLE vehiclejourney(
+			source_id INT NOT NULL REFERENCES source(source_id),
+			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
+			other_vjcode_id INT REFERENCES vehiclejourney(vjcode_id) DEFERRABLE,
+			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id) DEFERRABLE,
+			line_id INT NOT NULL REFERENCES line(line_id) DEFERRABLE,
+			privatecode TEXT,
+			days_mask INT,
+			deptime TEXT,
+			deptime_seconds INT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS operator;
+		""", """
+		CREATE TABLE operator(
+			source_id INT REFERENCES source(source_id),
+			operator_id TEXT PRIMARY KEY,
+			shortname TEXT);
 		"""),
 	("""
 		DROP TABLE IF EXISTS stoppoint;

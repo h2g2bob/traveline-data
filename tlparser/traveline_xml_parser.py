@@ -57,7 +57,7 @@ def add_service(elem, conn, source_id):
 		jpsectionrefs = jpelem.xpath("./tx:JourneyPatternSectionRefs/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			jpintern = interned_journeypattern(conn, source_id, jpref)
-			routeintern = interned_route(conn, source_id, routeref)
+			routeintern = interned_route(conn, source_id, routeref) if routeref is not None else None
 			cur.execute("""
 				INSERT INTO journeypattern_service(source_id, journeypattern_id, service_id, route_id, direction)
 				VALUES (%s, %s, %s, %s, %s)
@@ -66,9 +66,9 @@ def add_service(elem, conn, source_id):
 			for jpsectionref in jpsectionrefs:
 				jpsectionintern = interned_jpsection(conn, source_id, jpsectionref)
 				cur.execute("""
-					INSERT INTO journeypattern_service_section(source_id, journeypattern_id, jpsection_id)
+					INSERT INTO journeypattern_service_section(source_id, jpsection_id, journeypattern_id)
 					VALUES (%s, %s, %s)
-				""", (source_id, jpintern, jpsectionintern))
+				""", (source_id, jpsectionintern, jpintern))
 
 def add_journeypatternsection(elem, conn, source_id):
 	jpsection = elem.get("id")
@@ -85,7 +85,7 @@ def add_journeypatternsection(elem, conn, source_id):
 		[to_stoppoint] = jptl.xpath("./tx:To/tx:StopPointRef/text()", namespaces=NAMESPACES)
 		with conn.cursor() as cur:
 			jptiminglinkintern = interned_jptiminglink(conn, source_id, jptiminglink)
-			routelinkintern = interned_routelink(conn, source_id, routelinkref)
+			routelinkintern = interned_routelink(conn, source_id, routelinkref) if routelinkref is not None else None
 			cur.execute("""
 				INSERT INTO jptiminglink(source_id, jptiminglink_id, jpsection_id, routelink_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
