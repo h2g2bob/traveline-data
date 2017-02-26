@@ -108,8 +108,6 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 		for from_id, to_id, frequency, line_names in cur:
 
 			if frequency < min_freq:
-				# we could also trim the list of stops to make the response
-				# smaller, but it's probably not worthwhile.
 				continue
 
 			if not (from_id in bus_stops or to_id in bus_stops):
@@ -127,6 +125,10 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 
 			atcocode_sets.add(from_id)
 			atcocode_sets.add(to_id)
+
+		# Don't send bus stops which don't have any service
+		# this stops the client from (slowly) showing lots of irrelevent bus stops
+		bus_stops = {k: v for (k, v) in bus_stops.items() if k in atcocode_sets}
 
 		# We want to draw lines whuch have a bus stop inside and a bus stop outside
 		# the requested bounding box. We query the extra bus stops we need with this
