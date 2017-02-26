@@ -22,7 +22,7 @@ def boundingbox_from_request():
 	return (
 		float(request.args['lat']),
 		float(request.args['lng']),
-		float(request.args['lat']) + height,
+		float(request.args['lat']) - height,
 		float(request.args['lng']) + width)
 
 @app.route('/')
