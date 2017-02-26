@@ -129,7 +129,9 @@ TravelineDataMap.prototype = {
 
 			console.log("should download " + next_download);
 
-			var url = "/json/?lat=" + slat2lat(next_download.minslat) + "&lng=" + slng2lng(next_download.minslng) + "&width=" + next_download.width() + "&height=" + next_download.height();
+			/* show less accuracy at wider zoom levels */
+			var min_freq = this.paint.zoom > 2500 ? "1" : "4";
+			var url = "/json/?lat=" + slat2lat(next_download.minslat) + "&lng=" + slng2lng(next_download.minslng) + "&width=" + next_download.width() + "&height=" + next_download.height() + "&min_freq=" + min_freq;
 			var that = this;
 			var callback = function () {
 				if (xmlhttpreq.readyState == 4) {

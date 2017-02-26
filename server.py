@@ -19,11 +19,11 @@ def boundingbox_from_request():
 	width = float(request.args['width'])
 	if width * height > 0.25:
 		raise ValueError("Area too large (forbidden)")
-	return (
-		float(request.args['lat']),
-		float(request.args['lng']),
-		float(request.args['lat']) - height,
-		float(request.args['lng']) + width)
+	return dict(
+		minlat=float(request.args['lat']),
+		minlng=float(request.args['lng']),
+		maxlat=float(request.args['lat']) - height,
+		maxlng=float(request.args['lng']) + width)
 
 @app.route('/')
 def map_page():
@@ -35,14 +35,14 @@ def format_json():
 	boundingbox = boundingbox_from_request()
 	logging.info('%r', boundingbox)
 	with database() as conn:
-		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, *boundingbox)
+		pairs_and_stops = line_segments_and_stops_in_boundingbox(conn, min_freq=int(request.args.get('min_freq', 1)), **boundingbox)
 		return json.dumps(pairs_and_stops, indent=4)
 
 @app.route('/dot/')
 def format_dot():
 	boundingbox = boundingbox_from_request()
 	with database() as conn:
-		points = line_segments_in_boundingbox(conn, *boundingbox)
+		points = line_segments_in_boundingbox(conn, **boundingbox)
 		return 'digraph {\n' + '\n'.join(
 			'"{}" -> "{}";'.format(point['from']['id'], point['to']['id'])
 			for point in points

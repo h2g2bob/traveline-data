@@ -60,7 +60,7 @@ def line_segments_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_
 			in cur]
 
 
-def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_week=0x01, hour=12):
+def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng, day_of_week=0x01, hour=12, min_freq=1):
 	assert 0 <= hour < 24
 	hour_column = 'hour_%d' % (hour,)
 	with conn.cursor() as cur:
@@ -79,9 +79,9 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			WHERE point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
 		""", (
 			minlat,
-			minlong,
+			minlng,
 			maxlat,
-			maxlong,))
+			maxlng,))
 		for stop_id, name, latitude, longitude in cur:
 			bus_stops[stop_id] = {
 				"name": name,
@@ -102,10 +102,15 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			LEFT JOIN line line ON vjph.line_id = line.line_id
 			WHERE jp_bbox.bounding_box && box(point(%s, %s), point(%s, %s))
 			GROUP BY 1, 2
-			""", (day_of_week, minlat, minlong, maxlat, maxlong,))
+			""", (day_of_week, minlat, minlng, maxlat, maxlng,))
 		bus_stop_pairs = []
 		atcocode_sets = set()
 		for from_id, to_id, frequency, line_names in cur:
+
+			if frequency < min_freq:
+				# we could also trim the list of stops to make the response
+				# smaller, but it's probably not worthwhile.
+				continue
 
 			if not (from_id in bus_stops or to_id in bus_stops):
 				# jptiminglink is grouped by (stop1, stop2, journeypattern_id)
