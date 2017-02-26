@@ -64,6 +64,30 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 	assert 0 <= hour < 24
 	hour_column = 'hour_%d' % (hour,)
 	with conn.cursor() as cur:
+
+		# Efficiently find most of the bus stops using the geographic index:
+		bus_stops = {}
+		cur.execute("""
+			SELECT
+				atcocode,
+				name,
+				latitude,
+				longitude
+			FROM
+				naptan
+
+			WHERE point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
+		""", (
+			minlat,
+			minlong,
+			maxlat,
+			maxlong,))
+		for stop_id, name, latitude, longitude in cur:
+			bus_stops[stop_id] = {
+				"name": name,
+				"lat": latitude,
+				"lng": longitude}
+
 		cur.execute("""
 			SELECT
 				timing.from_stoppoint,
@@ -80,60 +104,44 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlong, maxlat, maxlon
 			GROUP BY 1, 2
 			""", (day_of_week, minlat, minlong, maxlat, maxlong,))
 		bus_stop_pairs = []
-		atcocode_list = set()
+		atcocode_sets = set()
 		for from_id, to_id, frequency, line_names in cur:
+
+			if not (from_id in bus_stops or to_id in bus_stops):
+				# jptiminglink is grouped by (stop1, stop2, journeypattern_id)
+				# we want to make sure our sum() contains all the possible
+				# journeypattern_ids for the bus stop pair ... which is only
+				# true if at least one stop is inside the requested_bbox.
+				continue
+
 			bus_stop_pairs.append({
 				"from": from_id,
 				"to": to_id,
 				"frequency": int(frequency),
 				"line_names": line_names})
-			atcocode_list.add(from_id)
-			atcocode_list.add(to_id)
 
-		# Efficiently find most of the bus stops using the geographic index:
-		bus_stops = {}
-		if atcocode_list:
-			cur.execute("""
-				SELECT
-					atcocode,
-					latitude,
-					longitude
-				FROM
-					naptan
-
-				WHERE atcocode IN %s
-				AND point(latitude, longitude) <@ box(point(%s, %s), point(%s, %s))
-			""", (
-				tuple(atcocode_list),
-				minlat,
-				minlong,
-				maxlat,
-				maxlong,))
-			for stop_id, latitude, longitude in cur:
-				bus_stops[stop_id] = {
-					"lat": latitude,
-					"lng": longitude}
-				atcocode_list.remove(stop_id)
+			atcocode_sets.add(from_id)
+			atcocode_sets.add(to_id)
 
 		# We want to draw lines whuch have a bus stop inside and a bus stop outside
 		# the requested bounding box. We query the extra bus stops we need with this
 		# inefficient query (which will probably do a loop over the index on atcocode)
-		if atcocode_list:
-			cur.execute("""
-				SELECT
-					atcocode,
-					name,
-					latitude,
-					longitude
-				FROM
-					naptan
+		atcocode_list = tuple(atcocode_sets - set(bus_stops.keys())) or ('nothing',)
+		cur.execute("""
+			SELECT
+				atcocode,
+				name,
+				latitude,
+				longitude
+			FROM
+				naptan
 
-				WHERE atcocode IN %s
-			""", (tuple(atcocode_list) or ('nothing',),))
-			for stop_id, name, latitude, longitude in cur:
-				bus_stops[stop_id] = {
-					"name": name,
-					"lat": latitude,
-					"lng": longitude}
+			WHERE atcocode IN %s
+		""", (atcocode_list,))
+		for stop_id, name, latitude, longitude in cur:
+			bus_stops[stop_id] = {
+				"name": name,
+				"lat": latitude,
+				"lng": longitude}
 
 	return {"pairs": bus_stop_pairs, "stops": bus_stops}
