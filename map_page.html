@@ -2,10 +2,10 @@
 <html>
 <head>
 <!--
-- factor out hard-coded lat/lng/zoom
-- color lines by frequency
-- make curvy lines
-- hook up some panning / scrolling mechanism
+- factor out hard-coded lat/lng/zoom ... ie: some sort of #!... anchor
+- make curvy lines (probably don't bother)
+- let people specify (time of day/day of week) OR (frequent all day) OR (single line frequency at time/dow) OR (some other conditions)
+- show town names somehow?
 -->
 <title>Bus routes</title>
 <style type="text/css">
@@ -30,6 +30,15 @@ svg path[frequency=low] {
 	opacity: 0.1;
 }
 
+svg circle.stop {
+	opacity: 0;
+	fill: #ffff80;
+	stroke: none;
+}
+svg circle.stop:hover {
+	opacity: 0.5;
+}
+
 .fullscreen {
 	height: 100vh;
 	width: 100vw;
@@ -51,36 +60,44 @@ svg path[frequency=low] {
 	height: 10vh;
 }
 
+#stop_name {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	background: #000000;
+	color: #00cc00;
+}
+
 </style>
 <script type="application/javascript">
 
-function Box(minlng, maxlng, minlat, maxlat) {
-	this.minlng = minlng;
-	this.maxlng = maxlng;
-	this.minlat = minlat;
-	this.maxlat = maxlat;
+function Box(minslng, maxslng, minslat, maxslat) {
+	this.minslng = minslng;
+	this.maxslng = maxslng;
+	this.minslat = minslat;
+	this.maxslat = maxslat;
 }
 Box.prototype = {
 	width: function () {
-		return this.maxlng - this.minlng;
+		return this.maxslng - this.minslng;
 	},
 
 	height: function () {
-		return this.maxlat - this.minlat;
+		return this.maxslat - this.minslat;
 	},
 
 	toString: function () {
-		return "Box(" + this.minlng + ", " + this.maxlng + ", " + this.minlat + ", " + this.maxlat + ")";
+		return "Box(" + this.minslng + ", " + this.maxslng + ", " + this.minslat + ", " + this.maxslat + ")";
 	}
 }
 
-function TravelineDataMap(container, paint, lng, lat) {
+function TravelineDataMap(container, paint, slng, slat) {
 	this.container = container;
 	this.paint = paint;
 
 	/* current top-left position, call pan() after changing this */
-	this.lat = lat;
-	this.lng = lng;
+	this.slat = slat;
+	this.slng = slng;
 
 	/* set this.data_already_requested */
 	this.zero_requested_data();
@@ -89,15 +106,15 @@ TravelineDataMap.prototype = {
 	zero_requested_data: function () {
 		/* currently we "requested" just a single point -- but we can build from this one point */
 		this.paint.clear();
-		this.data_already_requested = new Box(this.lng, this.lng, this.lat, this.lat);
+		this.data_already_requested = new Box(this.slng, this.slng, this.slat, this.slat);
 	},
 
 	current_viewport: function () {
 		return new Box(
-			this.lng,
-			this.lng + this.paint.descale(this.container.offsetWidth),
-			this.lat,
-			this.lat + this.paint.descale(this.container.offsetHeight)
+			this.slng,
+			this.slng + this.paint.descale(this.container.offsetWidth),
+			this.slat,
+			this.slat + this.paint.descale(this.container.offsetHeight)
 		);
 	},
 
@@ -112,7 +129,9 @@ TravelineDataMap.prototype = {
 
 			console.log("should download " + next_download);
 
-			var url = "/json/?lat=" + next_download.minlat + "&lng=" + next_download.minlng + "&width=" + next_download.width() + "&height=" + next_download.height();
+			/* show less accuracy at wider zoom levels */
+			var min_freq = this.paint.zoom > 2500 ? "1" : "4";
+			var url = "/json/?lat=" + slat2lat(next_download.minslat) + "&lng=" + slng2lng(next_download.minslng) + "&width=" + next_download.width() + "&height=" + next_download.height() + "&min_freq=" + min_freq;
 			var that = this;
 			var callback = function () {
 				if (xmlhttpreq.readyState == 4) {
@@ -128,62 +147,66 @@ TravelineDataMap.prototype = {
 	},
 
 	pan: function() {
-		this.paint.svg.setAttribute("transform", "translate(" + this.paint.scale(-this.lng) + "," + this.paint.scale(-this.lat) + ")");
+		this.paint.svg.setAttribute("transform", "translate(" + this.paint.scale(-this.slng) + "," + this.paint.scale(-this.slat) + ")");
 	},
 
 	calculate_region_to_dowload_next: function () {
+		var max_single_request_size = 0.1;
+		var min_single_request_size = 0.05;
+
+		function increase_from(current, desired) {
+			return Math.max(
+				Math.min(desired, current + max_single_request_size),
+				current + min_single_request_size);
+		}
+		function decrease_from(current, desired) {
+			return Math.min(
+				Math.max(desired, current - max_single_request_size),
+				current - min_single_request_size);
+		}
+
 		var desired = this.current_viewport();
 		this.paint.debug_show_requested_data("viewport", desired, "stroke: #008080; fill: transparent;");
 
-		var max_single_request_size = 0.1;
-
-		if (desired.maxlat > this.data_already_requested.maxlat) {
+		if (desired.maxslat > this.data_already_requested.maxslat) {
 			/* expand down */
-			var old_maxlat = this.data_already_requested.maxlat;
-			this.data_already_requested.maxlat = Math.min(
-				desired.maxlat,
-				this.data_already_requested.maxlat + max_single_request_size)
+			var old_maxslat = this.data_already_requested.maxslat;
+			this.data_already_requested.maxslat = increase_from(this.data_already_requested.maxslat, desired.maxslat);
 			return new Box(
-				this.data_already_requested.minlng,
-				this.data_already_requested.maxlng,
-				old_maxlat,
-				this.data_already_requested.maxlat
+				this.data_already_requested.minslng,
+				this.data_already_requested.maxslng,
+				old_maxslat,
+				this.data_already_requested.maxslat
 			);
-		} else if (desired.minlat < this.data_already_requested.minlat) {
+		} else if (desired.minslat < this.data_already_requested.minslat) {
 			/* expand up */
-			var old_minlat = this.data_already_requested.minlat;
-			this.data_already_requested.minlat = Math.max(
-				desired.minlat,
-				this.data_already_requested.minlat - max_single_request_size)
+			var old_minslat = this.data_already_requested.minslat;
+			this.data_already_requested.minslat = decrease_from(this.data_already_requested.minslat, desired.minslat);
 			return new Box(
-				this.data_already_requested.minlng,
-				this.data_already_requested.maxlng,
-				this.data_already_requested.minlat,
-				old_minlat
+				this.data_already_requested.minslng,
+				this.data_already_requested.maxslng,
+				this.data_already_requested.minslat,
+				old_minslat
 			);
-		} else if (desired.maxlng > this.data_already_requested.maxlng) {
+		} else if (desired.maxslng > this.data_already_requested.maxslng) {
 			/* expand right */
-			var old_maxlng = this.data_already_requested.maxlng;
-			this.data_already_requested.maxlng = Math.min(
-				desired.maxlng,
-				this.data_already_requested.maxlng + max_single_request_size)
+			var old_maxslng = this.data_already_requested.maxslng;
+			this.data_already_requested.maxslng = increase_from(this.data_already_requested.maxslng, desired.maxslng);
 			return new Box(
-				old_maxlng,
-				this.data_already_requested.maxlng,
-				this.data_already_requested.minlat,
-				this.data_already_requested.maxlat
+				old_maxslng,
+				this.data_already_requested.maxslng,
+				this.data_already_requested.minslat,
+				this.data_already_requested.maxslat
 			);
-		} else if (desired.minlng < this.data_already_requested.minlng) {
+		} else if (desired.minslng < this.data_already_requested.minslng) {
 			/* expand left */
-			var old_minlng = this.data_already_requested.minlng;
-			this.data_already_requested.minlng = Math.max(
-				desired.minlng,
-				this.data_already_requested.minlng - max_single_request_size)
+			var old_minslng = this.data_already_requested.minslng;
+			this.data_already_requested.minslng = decrease_from(this.data_already_requested.minslng, desired.minslng);
 			return new Box(
-				this.data_already_requested.minlng,
-				old_minlng,
-				this.data_already_requested.minlat,
-				this.data_already_requested.maxlat
+				this.data_already_requested.minslng,
+				old_minslng,
+				this.data_already_requested.minslat,
+				this.data_already_requested.maxslat
 			);
 		} else {
 			return null;
@@ -229,6 +252,30 @@ TLDataPaint.prototype = {
 				}
 			}
 		});
+		for (var key in data["stops"]) {
+			if (!data["stops"].hasOwnProperty(key)) {
+				continue;
+			}
+			var stop_id = "stop_" + key;
+			var stop = data["stops"][key];
+			if (document.getElementById(stop_id) === null) {
+				var circ = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+				circ.setAttribute("id", stop_id);
+				circ.setAttribute("cx", this.scale(lng2slng(stop["lng"])));
+				circ.setAttribute("cy", this.scale(lat2slat(stop["lat"])));
+				circ.setAttribute("r", 5);
+				circ.setAttribute("class", "stop");
+				circ.setAttribute("data-stop-id", key);
+				circ.setAttribute("data-stop-name", stop["name"]);
+				paint.svg.appendChild(circ);
+			}
+		};
+	},
+
+	clear: function() {
+		for (var child = this.svg.firstChild; child !== null; child = this.svg.firstChild) {
+			this.svg.removeChild(child);
+		}
 	},
 
 	clear: function() {
@@ -242,12 +289,23 @@ TLDataPaint.prototype = {
 		if (path == undefined) {
 			var path = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			path.setAttribute("id", name);
-			this.svg.appendChild(path);
+			path.setAttribute("class", "debug-download-indication");
+
+			// add this at the top of the element list, so that it gets rendered first
+			// ie: underneath the stops, which have user interaction
+			// this is ugly because most browsers ignore z-index in svg:
+			// https://developer.mozilla.org/en-US/docs/Web/SVG/SVG_2_support_in_Mozilla#Painting
+			// oh, and insertChild cannot have a null option, fuck you w3c
+			if (this.svg.firstChild !== undefined) {
+				this.svg.insertBefore(path, this.svg.firstChild);
+			} else {
+				this.svg.appendChild(path);
+			}
 		}
-		path.setAttribute("y", this.scale(box.minlat));
-		path.setAttribute("x", this.scale(box.minlng));
-		path.setAttribute("height", this.scale(box.maxlat - box.minlat));
-		path.setAttribute("width", this.scale(box.maxlng - box.minlng));
+		path.setAttribute("y", this.scale(box.minslat));
+		path.setAttribute("x", this.scale(box.minslng));
+		path.setAttribute("height", this.scale(box.maxslat - box.minslat));
+		path.setAttribute("width", this.scale(box.maxslng - box.minslng));
 		path.setAttribute("style", style);
 	},
 
@@ -257,7 +315,7 @@ TLDataPaint.prototype = {
 		if (from_stop === undefined || to_stop === undefined) {
 			return null;
 		}
-		return "M " + this.scale(from_stop["lng"]) + " " + this.scale(from_stop["lat"]) + " L " + this.scale(to_stop["lng"]) + " " + this.scale(to_stop["lat"]);
+		return "M " + this.scale(lng2slng(from_stop["lng"])) + " " + this.scale(lat2slat(from_stop["lat"])) + " L " + this.scale(lng2slng(to_stop["lng"])) + " " + this.scale(lat2slat(to_stop["lat"]));
 	},
 
 	frequency_label: function(buses_per_hour) {
@@ -273,7 +331,7 @@ TLDataPaint.prototype = {
 
 window.addEventListener("load", function () {
 	var paint = new TLDataPaint(document.getElementById("map_paint_area"));
-	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, -2.530, 51.750);
+	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, lng2slng(0.698), lat2slat(51.566));
 	window.travelinedatamap.run();
 
 	var step_size = 100
@@ -297,19 +355,19 @@ window.addEventListener("load", function () {
 				do_zoom(1/1.5);
 				break;
 			case "w":
-				window.travelinedatamap.lat -= step_size/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.slat -= step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "s":
-				window.travelinedatamap.lat += step_size/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.slat += step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "a":
-				window.travelinedatamap.lng -= step_size/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.slng -= step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 			case "d":
-				window.travelinedatamap.lng += step_size/window.travelinedatamap.paint.zoom;
+				window.travelinedatamap.slng += step_size/window.travelinedatamap.paint.zoom;
 				window.travelinedatamap.pan();
 				break;
 		}
@@ -332,8 +390,8 @@ window.addEventListener("load", function () {
 			var change_y = event.screenY - drag_start_y;
 			drag_start_x = event.screenX;
 			drag_start_y = event.screenY;
-			window.travelinedatamap.lat -= change_y/window.travelinedatamap.paint.zoom;
-			window.travelinedatamap.lng -= change_x/window.travelinedatamap.paint.zoom;
+			window.travelinedatamap.slat -= change_y/window.travelinedatamap.paint.zoom;
+			window.travelinedatamap.slng -= change_x/window.travelinedatamap.paint.zoom;
 			window.travelinedatamap.pan();
 		}
 	}, false);
@@ -347,24 +405,56 @@ window.addEventListener("load", function () {
 	add_control("+", function () { do_zoom(1.5); });
 	add_control("-", function () { do_zoom(1/1.5); });
 	add_control("N", function () {
-		window.travelinedatamap.lat -= step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.slat -= step_size/window.travelinedatamap.paint.zoom;
 		window.travelinedatamap.pan();
 	});
 	add_control("S", function () {
-		window.travelinedatamap.lat += step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.slat += step_size/window.travelinedatamap.paint.zoom;
 		window.travelinedatamap.pan();
 	});
 	add_control("W", function () {
-		window.travelinedatamap.lng -= step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.slng -= step_size/window.travelinedatamap.paint.zoom;
 		window.travelinedatamap.pan();
 	});
 	add_control("E", function () {
-		window.travelinedatamap.lng += step_size/window.travelinedatamap.paint.zoom;
+		window.travelinedatamap.slng += step_size/window.travelinedatamap.paint.zoom;
 		window.travelinedatamap.pan();
 	});
+
+	window.addEventListener("mouseover", function (event) {
+		if (event.target) {
+			var stop_id = event.target.getAttribute("data-stop-id");
+			var stop_name = event.target.getAttribute("data-stop-name");
+			if (stop_name) {
+				document.getElementById("stop_name").textContent = stop_id + ": " + stop_name;
+			}
+		}
+	});
+
 });
 
+/*
+longitude increases as the screen gets nearer the top of the screen, which is
+the opposite of x/y in a web browser.
+it's convenient to pretend that doesn't happen, and deal with "screen latitude"
+instead.
 
+probably this should be combined with "scale", but some actions (pressing "w"
+to go up a certain number of pixels) would also need to be changed, which might
+make this even more confusing.
+*/
+function lat2slat(lat) {
+	return -lat;
+}
+function lng2slng(lng) {
+	return lng;
+}
+function slat2lat(slat) {
+	return -slat;
+}
+function slng2lng(slng) {
+	return slng;
+}
 
 </script>
 </head>
@@ -374,4 +464,5 @@ window.addEventListener("load", function () {
 	</g>
 </svg></div>
 <div id="controls"></div>
+<div id="stop_name"></div>
 </body>

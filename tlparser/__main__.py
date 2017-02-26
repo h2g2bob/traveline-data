@@ -3,7 +3,7 @@ import argparse
 import psycopg2
 import logging
 
-from .table_definitions import create_tables, create_naptan_tables, create_intern_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
+from .table_definitions import create_tables, create_naptan_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
 from . import naptan_file_parser
 from . import traveline_file_parser
 
@@ -38,7 +38,6 @@ def main():
 	if args.destroy_create_tables:
 		with psycopg2.connect(args.database) as conn:
 			drop_materialized_views(conn)
-			create_intern_tables(conn)
 			create_tables(conn)
 			create_materialized_views(conn)
 

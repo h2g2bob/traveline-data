@@ -3,6 +3,17 @@
 
 import logging
 
+def _table_command_intern(tablename):
+	return ("""
+		DROP TABLE IF EXISTS %(tablename)s_intern;
+		""" % dict(tablename=tablename), """
+		CREATE TABLE IF NOT EXISTS %(tablename)s_intern (
+			%(tablename)s_id SERIAL PRIMARY KEY,
+			source_id INTEGER NOT NULL REFERENCES source(source_id),
+			%(tablename)s TEXT NOT NULL,
+			UNIQUE (source_id, %(tablename)s));
+		""" % dict(tablename=tablename))
+
 TABLE_COMMANDS = [
 	("""
 		DROP TABLE IF EXISTS source;
@@ -11,14 +22,74 @@ TABLE_COMMANDS = [
 			source_id SERIAL PRIMARY KEY,
 			source TEXT UNIQUE)
 		"""),
+
+	_table_command_intern("journeypattern"),
+	_table_command_intern("jpsection"),
+	_table_command_intern("jptiminglink"),
+	_table_command_intern("vjcode"),
+	_table_command_intern("line"),
+	_table_command_intern("service"),
+	_table_command_intern("route"),
+	_table_command_intern("routelink"),
+
 	("""
-		DROP TABLE IF EXISTS jptiminglink;
+		DROP TABLE IF EXISTS routelink CASCADE;
+		""", """
+		CREATE TABLE routelink(
+			source_id INT REFERENCES source(source_id),
+			routelink_id INT PRIMARY KEY REFERENCES routelink_intern(routelink_id),
+			routesection TEXT,
+			from_stoppoint TEXT,
+			to_stoppoint TEXT,
+			direction TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS service CASCADE;
+		""", """
+		CREATE TABLE service(
+			source_id INT REFERENCES source(source_id),
+			service_id INT PRIMARY KEY REFERENCES service_intern(service_id),
+			privatecode TEXT,
+			mode TEXT,
+			operator_id TEXT,
+			description TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS route CASCADE;
+		""", """
+		CREATE TABLE route(
+			source_id INT REFERENCES source(source_id),
+			route_id INT PRIMARY KEY REFERENCES route_intern(route_id),
+			privatecode TEXT,
+			routesection TEXT,
+			description TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS journeypattern_service CASCADE;
+		""", """
+		CREATE TABLE journeypattern_service(
+			source_id INT REFERENCES source(source_id),
+			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
+			service_id INT NOT NULL REFERENCES service(service_id) DEFERRABLE,
+			route_id INT REFERENCES route(route_id) DEFERRABLE,
+			direction TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS journeypattern_service_section CASCADE;
+		""", """
+		CREATE TABLE journeypattern_service_section(
+			source_id INT REFERENCES source(source_id),
+			jpsection_id INT PRIMARY KEY REFERENCES jpsection_intern(jpsection_id),
+			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id) DEFERRABLE)
+		"""),
+	("""
+		DROP TABLE IF EXISTS jptiminglink CASCADE;
 		""", """
 		CREATE TABLE jptiminglink(
 			source_id INT REFERENCES source(source_id),
-			jptiminglink TEXT PRIMARY KEY,
-			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
-			routelink TEXT,
+			jptiminglink_id INT PRIMARY KEY REFERENCES jptiminglink_intern(jptiminglink_id),
+			jpsection_id INT REFERENCES journeypattern_service_section(jpsection_id) DEFERRABLE,
+			routelink_id INT REFERENCES routelink(routelink_id) DEFERRABLE,
 			runtime TEXT,
 			from_sequence INT,
 			from_stoppoint TEXT,
@@ -26,59 +97,30 @@ TABLE_COMMANDS = [
 			to_stoppoint TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS vehiclejourney;
+		DROP TABLE IF EXISTS line CASCADE;
+		""", """
+		CREATE TABLE line(
+			source_id INT REFERENCES source(source_id),
+			line_id INT PRIMARY KEY REFERENCES line_intern(line_id),
+			servicecode TEXT,
+			line_name TEXT);
+		"""),
+	("""
+		DROP TABLE IF EXISTS vehiclejourney CASCADE;
 		""", """
 		CREATE TABLE vehiclejourney(
-			source_id INT REFERENCES source(source_id),
-			vjcode TEXT PRIMARY KEY,
-			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			line_id TEXT,
+			source_id INT NOT NULL REFERENCES source(source_id),
+			vjcode_id INT PRIMARY KEY REFERENCES vjcode_intern(vjcode_id),
+			other_vjcode_id INT REFERENCES vehiclejourney(vjcode_id) DEFERRABLE,
+			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id) DEFERRABLE,
+			line_id INT NOT NULL REFERENCES line(line_id) DEFERRABLE,
 			privatecode TEXT,
 			days_mask INT,
 			deptime TEXT,
 			deptime_seconds INT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS service;
-		""", """
-		CREATE TABLE service(
-			source_id INT REFERENCES source(source_id),
-			servicecode TEXT PRIMARY KEY,
-			privatecode TEXT,
-			mode TEXT,
-			operator_id TEXT,
-			description TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS line;
-		""", """
-		CREATE TABLE line(
-			source_id INT REFERENCES source(source_id),
-			line_id TEXT PRIMARY KEY,
-			servicecode TEXT,
-			line_name TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS journeypattern_service;
-		""", """
-		CREATE TABLE journeypattern_service(
-			source_id INT REFERENCES source(source_id),
-			journeypattern_id INT PRIMARY KEY REFERENCES journeypattern_intern(journeypattern_id),
-			servicecode TEXT,
-			route TEXT,
-			direction TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS journeypattern_service_section;
-		""", """
-		CREATE TABLE journeypattern_service_section(
-			source_id INT REFERENCES source(source_id),
-			journeypattern_id INT REFERENCES journeypattern_intern(journeypattern_id),
-			jpsection_id INT REFERENCES jpsection_intern(jpsection_id),
-			PRIMARY KEY (journeypattern_id, jpsection_id));
-		"""),
-	("""
-		DROP TABLE IF EXISTS operator;
+		DROP TABLE IF EXISTS operator CASCADE;
 		""", """
 		CREATE TABLE operator(
 			source_id INT REFERENCES source(source_id),
@@ -86,28 +128,7 @@ TABLE_COMMANDS = [
 			shortname TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS route;
-		""", """
-		CREATE TABLE route(
-			source_id INT REFERENCES source(source_id),
-			route_id TEXT PRIMARY KEY,
-			privatecode TEXT,
-			routesection TEXT,
-			description TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS routelink;
-		""", """
-		CREATE TABLE routelink(
-			source_id INT REFERENCES source(source_id),
-			routelink TEXT PRIMARY KEY,
-			routesection TEXT,
-			from_stoppoint TEXT,
-			to_stoppoint TEXT,
-			direction TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS stoppoint;
+		DROP TABLE IF EXISTS stoppoint CASCADE;
 		""", """
 		CREATE TABLE stoppoint(
 			source_id INT REFERENCES source(source_id),
@@ -176,34 +197,35 @@ def create_materialized_views(conn):
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
-				journeypattern_id,
-				line_id,
-				days_mask,
-				sum(case when deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
-				sum(case when deptime_seconds / 3600 = 1 then 1 else 0 end) as hour_1,
-				sum(case when deptime_seconds / 3600 = 2 then 1 else 0 end) as hour_2,
-				sum(case when deptime_seconds / 3600 = 3 then 1 else 0 end) as hour_3,
-				sum(case when deptime_seconds / 3600 = 4 then 1 else 0 end) as hour_4,
-				sum(case when deptime_seconds / 3600 = 5 then 1 else 0 end) as hour_5,
-				sum(case when deptime_seconds / 3600 = 6 then 1 else 0 end) as hour_6,
-				sum(case when deptime_seconds / 3600 = 7 then 1 else 0 end) as hour_7,
-				sum(case when deptime_seconds / 3600 = 8 then 1 else 0 end) as hour_8,
-				sum(case when deptime_seconds / 3600 = 9 then 1 else 0 end) as hour_9,
-				sum(case when deptime_seconds / 3600 = 10 then 1 else 0 end) as hour_10,
-				sum(case when deptime_seconds / 3600 = 11 then 1 else 0 end) as hour_11,
-				sum(case when deptime_seconds / 3600 = 12 then 1 else 0 end) as hour_12,
-				sum(case when deptime_seconds / 3600 = 13 then 1 else 0 end) as hour_13,
-				sum(case when deptime_seconds / 3600 = 14 then 1 else 0 end) as hour_14,
-				sum(case when deptime_seconds / 3600 = 15 then 1 else 0 end) as hour_15,
-				sum(case when deptime_seconds / 3600 = 16 then 1 else 0 end) as hour_16,
-				sum(case when deptime_seconds / 3600 = 17 then 1 else 0 end) as hour_17,
-				sum(case when deptime_seconds / 3600 = 18 then 1 else 0 end) as hour_18,
-				sum(case when deptime_seconds / 3600 = 19 then 1 else 0 end) as hour_19,
-				sum(case when deptime_seconds / 3600 = 20 then 1 else 0 end) as hour_20,
-				sum(case when deptime_seconds / 3600 = 21 then 1 else 0 end) as hour_21,
-				sum(case when deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
-				sum(case when deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
-			FROM vehiclejourney
+				coalesce(vj.journeypattern_id, other.journeypattern_id) AS journeypattern_id,
+				vj.line_id,
+				vj.days_mask,
+				sum(case when vj.deptime_seconds / 3600 = 0 then 1 else 0 end) as hour_0,
+				sum(case when vj.deptime_seconds / 3600 = 1 then 1 else 0 end) as hour_1,
+				sum(case when vj.deptime_seconds / 3600 = 2 then 1 else 0 end) as hour_2,
+				sum(case when vj.deptime_seconds / 3600 = 3 then 1 else 0 end) as hour_3,
+				sum(case when vj.deptime_seconds / 3600 = 4 then 1 else 0 end) as hour_4,
+				sum(case when vj.deptime_seconds / 3600 = 5 then 1 else 0 end) as hour_5,
+				sum(case when vj.deptime_seconds / 3600 = 6 then 1 else 0 end) as hour_6,
+				sum(case when vj.deptime_seconds / 3600 = 7 then 1 else 0 end) as hour_7,
+				sum(case when vj.deptime_seconds / 3600 = 8 then 1 else 0 end) as hour_8,
+				sum(case when vj.deptime_seconds / 3600 = 9 then 1 else 0 end) as hour_9,
+				sum(case when vj.deptime_seconds / 3600 = 10 then 1 else 0 end) as hour_10,
+				sum(case when vj.deptime_seconds / 3600 = 11 then 1 else 0 end) as hour_11,
+				sum(case when vj.deptime_seconds / 3600 = 12 then 1 else 0 end) as hour_12,
+				sum(case when vj.deptime_seconds / 3600 = 13 then 1 else 0 end) as hour_13,
+				sum(case when vj.deptime_seconds / 3600 = 14 then 1 else 0 end) as hour_14,
+				sum(case when vj.deptime_seconds / 3600 = 15 then 1 else 0 end) as hour_15,
+				sum(case when vj.deptime_seconds / 3600 = 16 then 1 else 0 end) as hour_16,
+				sum(case when vj.deptime_seconds / 3600 = 17 then 1 else 0 end) as hour_17,
+				sum(case when vj.deptime_seconds / 3600 = 18 then 1 else 0 end) as hour_18,
+				sum(case when vj.deptime_seconds / 3600 = 19 then 1 else 0 end) as hour_19,
+				sum(case when vj.deptime_seconds / 3600 = 20 then 1 else 0 end) as hour_20,
+				sum(case when vj.deptime_seconds / 3600 = 21 then 1 else 0 end) as hour_21,
+				sum(case when vj.deptime_seconds / 3600 = 22 then 1 else 0 end) as hour_22,
+				sum(case when vj.deptime_seconds / 3600 = 23 then 1 else 0 end) as hour_23
+			FROM vehiclejourney vj
+			LEFT JOIN vehiclejourney other ON vj.other_vjcode_id = other.vjcode_id
 			GROUP BY 1,2,3;
 		""")
 		cur.execute("""
@@ -255,52 +277,47 @@ def create_materialized_views(conn):
 		""")
 
 
-
-def create_intern_tables(conn):
+def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
-		cur.execute("""
-			CREATE TABLE IF NOT EXISTS journeypattern_intern (
-				journeypattern_id SERIAL PRIMARY KEY,
-				journeypattern TEXT UNIQUE)
-		""")
-		cur.execute("""
-			CREATE TABLE IF NOT EXISTS jpsection_intern (
-				jpsection_id SERIAL PRIMARY KEY,
-				jpsection TEXT UNIQUE)
-		""")
-
-def interned_journeypattern(conn, journeypattern):
-	with conn.cursor() as cur:
-		cur.execute("""
-			SELECT journeypattern_id
-			FROM journeypattern_intern
-			WHERE journeypattern = %s
-		""", (journeypattern,))
+		sql = """
+			SELECT %(tablename)s_id
+			FROM %(tablename)s_intern
+			WHERE source_id = %%s
+			AND %(tablename)s = %%s
+		""" % dict(tablename=tablename)
+		cur.execute(sql, (source_id, longname,))
 		rows = list(cur)
 		if len(rows) == 0:
-			cur.execute("""
-				INSERT INTO journeypattern_intern(journeypattern)
-				VALUES (%s)
-				RETURNING journeypattern_id
-			""", (journeypattern,))
+			sql = """
+				INSERT INTO %(tablename)s_intern(source_id, %(tablename)s)
+				VALUES (%%s, %%s)
+				RETURNING %(tablename)s_id
+			""" % dict(tablename=tablename)
+			cur.execute(sql, (source_id, longname,))
 			rows = list(cur)
-		[[jp_id]] = rows
-		return jp_id
+		[[short_id]] = rows
+		return short_id
 
-def interned_jpsection(conn, jpsection):
-	with conn.cursor() as cur:
-		cur.execute("""
-			SELECT jpsection_id
-			FROM jpsection_intern
-			WHERE jpsection = %s
-		""", (jpsection,))
-		rows = list(cur)
-		if len(rows) == 0:
-			cur.execute("""
-				INSERT INTO jpsection_intern(jpsection)
-				VALUES (%s)
-				RETURNING jpsection_id
-			""", (jpsection,))
-			rows = list(cur)
-		[[jp_id]] = rows
-		return jp_id
+def interned_journeypattern(conn, source_id, journeypattern):
+	return _interned('journeypattern', conn, source_id, journeypattern)
+
+def interned_jpsection(conn, source_id, jpsection):
+	return _interned('jpsection', conn, source_id, jpsection)
+
+def interned_jptiminglink(conn, source_id, jptiminglink):
+	return _interned('jptiminglink', conn, source_id, jptiminglink)
+
+def interned_vjcode(conn, source_id, vjcode):
+	return _interned('vjcode', conn, source_id, vjcode)
+
+def interned_service(conn, source_id, service):
+	return _interned('service', conn, source_id, service)
+
+def interned_line(conn, source_id, line):
+	return _interned('line', conn, source_id, line)
+
+def interned_route(conn, source_id, route):
+	return _interned('route', conn, source_id, route)
+
+def interned_routelink(conn, source_id, routelink):
+	return _interned('routelink', conn, source_id, routelink)

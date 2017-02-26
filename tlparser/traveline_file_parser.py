@@ -34,6 +34,12 @@ def process_zipfile(conn, zip_filename):
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
 			with conn as transaction_conn:
+
+				# We don't know if we'll be told about things in the correct order
+				# but each file should be self-consistent
+				with transaction_conn.cursor() as cur:
+					cur.execute("SET CONSTRAINTS ALL DEFERRED;")
+
 				source_id = source_id_if_not_already_inserted(transaction_conn, source)
 				if source_id:
 					with container.open(contentname) as xmlfile:
@@ -44,6 +50,11 @@ def process_zipfile(conn, zip_filename):
 							logging.exception("Skipping file %s (%r)", source, source_id)
 
 def source_id_if_not_already_inserted(conn, source):
+	# Only do the southend area
+	USE_TESTING_DATA_ONLY = False
+	if USE_TESTING_DATA_ONLY and not source.startswith("SE.zip/set_5-"):
+		return None
+
 	with conn.cursor() as cur:
 		cur.execute("""
 			insert into source(source) values (%s)
