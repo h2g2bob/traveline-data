@@ -151,17 +151,27 @@ TravelineDataMap.prototype = {
 	},
 
 	calculate_region_to_dowload_next: function () {
+		var max_single_request_size = 0.1;
+		var min_single_request_size = 0.05;
+
+		function increase_from(current, desired) {
+			return Math.max(
+				Math.min(desired, current + max_single_request_size),
+				current + min_single_request_size);
+		}
+		function decrease_from(current, desired) {
+			return Math.min(
+				Math.max(desired, current - max_single_request_size),
+				current - min_single_request_size);
+		}
+
 		var desired = this.current_viewport();
 		this.paint.debug_show_requested_data("viewport", desired, "stroke: #008080; fill: transparent;");
-
-		var max_single_request_size = 0.1;
 
 		if (desired.maxslat > this.data_already_requested.maxslat) {
 			/* expand down */
 			var old_maxslat = this.data_already_requested.maxslat;
-			this.data_already_requested.maxslat = Math.min(
-				desired.maxslat,
-				this.data_already_requested.maxslat + max_single_request_size)
+			this.data_already_requested.maxslat = increase_from(this.data_already_requested.maxslat, desired.maxslat);
 			return new Box(
 				this.data_already_requested.minslng,
 				this.data_already_requested.maxslng,
@@ -171,9 +181,7 @@ TravelineDataMap.prototype = {
 		} else if (desired.minslat < this.data_already_requested.minslat) {
 			/* expand up */
 			var old_minslat = this.data_already_requested.minslat;
-			this.data_already_requested.minslat = Math.max(
-				desired.minslat,
-				this.data_already_requested.minslat - max_single_request_size)
+			this.data_already_requested.minslat = decrease_from(this.data_already_requested.minslat, desired.minslat);
 			return new Box(
 				this.data_already_requested.minslng,
 				this.data_already_requested.maxslng,
@@ -183,9 +191,7 @@ TravelineDataMap.prototype = {
 		} else if (desired.maxslng > this.data_already_requested.maxslng) {
 			/* expand right */
 			var old_maxslng = this.data_already_requested.maxslng;
-			this.data_already_requested.maxslng = Math.min(
-				desired.maxslng,
-				this.data_already_requested.maxslng + max_single_request_size)
+			this.data_already_requested.maxslng = increase_from(this.data_already_requested.maxslng, desired.maxslng);
 			return new Box(
 				old_maxslng,
 				this.data_already_requested.maxslng,
@@ -195,9 +201,7 @@ TravelineDataMap.prototype = {
 		} else if (desired.minslng < this.data_already_requested.minslng) {
 			/* expand left */
 			var old_minslng = this.data_already_requested.minslng;
-			this.data_already_requested.minslng = Math.max(
-				desired.minslng,
-				this.data_already_requested.minslng - max_single_request_size)
+			this.data_already_requested.minslng = decrease_from(this.data_already_requested.minslng, desired.minslng);
 			return new Box(
 				this.data_already_requested.minslng,
 				old_minslng,
