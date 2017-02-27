@@ -125,7 +125,12 @@ TravelineDataMap.prototype = {
 
 		if (next_download !== null) {
 			var debug_name = "next_" + Math.random()
+
+			/*
 			this.paint.debug_show_requested_data(debug_name, next_download, "stroke: transparent; fill: #" + (Math.random() < 0.5?"ff":"00") + (Math.random() < 0.5?"ff":"00") + (Math.random() < 0.5?"ff":"00") + "; opacity: 0.05;");
+			*/
+
+			var currently_downloading = this.paint.show_downloading_indication(next_download, "stroke: transparent; fill: black; opacity: 0.7;");
 
 			console.log("should download " + next_download);
 
@@ -136,6 +141,10 @@ TravelineDataMap.prototype = {
 			var callback = function () {
 				if (xmlhttpreq.readyState == 4) {
 					that.paint.add_data(JSON.parse(xmlhttpreq.responseText));
+
+					if (currently_downloading.parentNode !== null) {
+						currently_downloading.parentNode.removeChild(currently_downloading);
+					}
 				}
 			};
 
@@ -282,6 +291,17 @@ TLDataPaint.prototype = {
 		for (var child = this.svg.firstChild; child !== null; child = this.svg.firstChild) {
 			this.svg.removeChild(child);
 		}
+	},
+
+	show_downloading_indication: function (box, style) {
+		var path = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+		path.setAttribute("y", this.scale(box.minslat));
+		path.setAttribute("x", this.scale(box.minslng));
+		path.setAttribute("height", this.scale(box.maxslat - box.minslat));
+		path.setAttribute("width", this.scale(box.maxslng - box.minslng));
+		path.setAttribute("style", style);
+		this.svg.appendChild(path);
+		return path;
 	},
 
 	debug_show_requested_data: function (name, box, style) {
