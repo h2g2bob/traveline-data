@@ -3,7 +3,7 @@ import argparse
 import psycopg2
 import logging
 
-from .table_definitions import create_tables, create_naptan_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
+from .table_definitions import create_tables, create_naptan_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views, update_all_journeypattern_boundingbox
 from . import naptan_file_parser
 from . import traveline_file_parser
 
@@ -45,6 +45,10 @@ def main():
 		conn = psycopg2.connect(args.database)
 		traveline_file_parser.process_all_files(conn)
 
+	if args.generate:
+		with psycopg2.connect(args.database) as conn:
+			update_all_journeypattern_boundingbox(conn)
+
 	if args.matview:
 		with psycopg2.connect(args.database) as conn:
 			refresh_materialized_views(conn)
@@ -56,6 +60,7 @@ def parse_args():
 	parser.add_argument('--naptan', help='import the data from naptan', action="store_true", default=False)
 	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
 	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
+	parser.add_argument('--generate', help='generate a table used as an index', action="store_true", default=False)
 	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
 	parser.add_argument('--database', help='databse location', default="dbname=travelinedata")
 

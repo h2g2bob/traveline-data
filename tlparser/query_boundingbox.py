@@ -30,7 +30,7 @@ def line_segments_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_
 				FROM jptiminglink timing
 				JOIN journeypattern_service_section section USING (jpsection_id)
 				JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-				JOIN mv_journeypattern_bounding_box jp_bbox USING (journeypattern_id)
+				JOIN journeypattern_bounding_box jp_bbox USING (journeypattern_id)
 				LEFT JOIN line line ON vjph.line_id = line.line_id
 				WHERE jp_bbox.bounding_box && (select desired_bounding_box from desired_bounding_box_table)
 				GROUP BY 1, 2
@@ -98,7 +98,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 			FROM jptiminglink timing
 			JOIN journeypattern_service_section section USING (jpsection_id)
 			JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-			JOIN mv_journeypattern_bounding_box jp_bbox USING (journeypattern_id)
+			JOIN journeypattern_bounding_box jp_bbox USING (journeypattern_id)
 			LEFT JOIN line line ON vjph.line_id = line.line_id
 			WHERE jp_bbox.bounding_box && box(point(%s, %s), point(%s, %s))
 			GROUP BY 1, 2
