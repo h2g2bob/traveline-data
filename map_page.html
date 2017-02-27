@@ -278,6 +278,12 @@ TLDataPaint.prototype = {
 		}
 	},
 
+	clear: function() {
+		for (var child = this.svg.firstChild; child !== null; child = this.svg.firstChild) {
+			this.svg.removeChild(child);
+		}
+	},
+
 	debug_show_requested_data: function (name, box, style) {
 		var path = document.getElementById(name);
 		if (path == undefined) {
@@ -424,8 +430,8 @@ window.addEventListener("load", function () {
 			}
 		}
 	});
-});
 
+});
 
 /*
 longitude increases as the screen gets nearer the top of the screen, which is

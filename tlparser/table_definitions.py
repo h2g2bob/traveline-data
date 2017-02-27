@@ -235,6 +235,11 @@ def create_materialized_views(conn):
 			LEFT JOIN vehiclejourney other ON vj.other_vjcode_id = other.vjcode_id
 			GROUP BY 1,2,3;
 		""")
+		cur.execute("""
+			CREATE INDEX idx_vehiclejourney_per_hour_id
+			ON mv_vehiclejourney_per_hour
+			USING btree (journeypattern_id);
+		""")
 
 def update_all_journeypattern_boundingbox(conn):
 	with conn as transaction_conn:
