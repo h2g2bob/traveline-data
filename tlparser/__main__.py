@@ -3,7 +3,7 @@ import argparse
 import psycopg2
 import logging
 
-from .table_definitions import create_tables, create_naptan_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views, update_all_journeypattern_boundingbox
+from .table_definitions import create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views, update_all_journeypattern_boundingbox
 from . import naptan_file_parser
 from . import traveline_file_parser
 
@@ -30,16 +30,15 @@ from . import traveline_file_parser
 def main():
 	args = parse_args()
 
-	if args.naptan:
-		with psycopg2.connect(args.database) as conn:
-			create_naptan_tables(conn)
-			naptan_file_parser.process_all_files(conn)
-
 	if args.destroy_create_tables:
 		with psycopg2.connect(args.database) as conn:
 			drop_materialized_views(conn)
 			create_tables(conn)
 			create_materialized_views(conn)
+
+	if args.naptan:
+		with psycopg2.connect(args.database) as conn:
+			naptan_file_parser.process_all_files(conn)
 
 	if args.process:
 		conn = psycopg2.connect(args.database)

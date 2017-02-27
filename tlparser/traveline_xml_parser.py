@@ -2,7 +2,7 @@
 
 import datetime
 import logging
-from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode, interned_service, interned_line, interned_route, interned_routelink
+from .table_definitions import interned_journeypattern, interned_jpsection, interned_jptiminglink, interned_vjcode, interned_service, interned_line, interned_route, interned_routelink, id_from_actocode
 
 NAMESPACES = {
 	"tx": "http://www.transxchange.org.uk/",
@@ -86,10 +86,12 @@ def add_journeypatternsection(elem, conn, source_id):
 		with conn.cursor() as cur:
 			jptiminglinkintern = interned_jptiminglink(conn, source_id, jptiminglink)
 			routelinkintern = interned_routelink(conn, source_id, routelinkref) if routelinkref is not None else None
+			from_stoppoint_id = id_from_actocode(conn, from_stoppoint)
+			to_stoppoint_id = id_from_actocode(conn, to_stoppoint)
 			cur.execute("""
 				INSERT INTO jptiminglink(source_id, jptiminglink_id, jpsection_id, routelink_id, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint)
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkintern, runtime, from_sequence, from_stoppoint, to_sequence, to_stoppoint))
+			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkintern, runtime, from_sequence, from_stoppoint_id, to_sequence, to_stoppoint_id))
 
 def add_vehiclejourney(elem, conn, source_id):
 	[vjcode] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
@@ -177,10 +179,12 @@ def add_routesection(elem, conn, source_id):
 
 		with conn.cursor() as cur:
 			routelink_id = interned_routelink(conn, source_id, routelinkcode)
+			from_stoppoint_id = id_from_actocode(conn, from_stoppoint)
+			to_stoppoint_id = id_from_actocode(conn, to_stoppoint)
 			cur.execute("""
 				INSERT INTO routelink(source_id, routelink_id, routesection, from_stoppoint, to_stoppoint, direction)
 				VALUES (%s, %s, %s, %s, %s, %s)
-			""", (source_id, routelink_id, routesection, from_stoppoint, to_stoppoint, direction,))
+			""", (source_id, routelink_id, routesection, from_stoppoint_id, to_stoppoint_id, direction,))
 
 def add_stoppoint(elem, conn, source_id):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
@@ -189,8 +193,9 @@ def add_stoppoint(elem, conn, source_id):
 	locality_name = maybe_one(elem.xpath("./tx:LocalityName/text()", namespaces=NAMESPACES))
 	locality_qualifier = maybe_one(elem.xpath("./tx:LocalityQualifier/text()", namespaces=NAMESPACES))
 	with conn.cursor() as cur:
+		atcocode_id = id_from_actocode(conn, stoppoint)
 		cur.execute("""
-			INSERT INTO stoppoint(source_id, stoppoint, name, indicator, locality_name, locality_qualifier)
+			INSERT INTO stoppoint(source_id, atcocode_id, name, indicator, locality_name, locality_qualifier)
 			VALUES (%s, %s, %s, %s, %s, %s)
 			ON CONFLICT DO NOTHING
-		""", (source_id, stoppoint, name, indicator, locality_name, locality_qualifier,))
+		""", (source_id, atcocode_id, name, indicator, locality_name, locality_qualifier,))

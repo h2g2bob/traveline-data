@@ -35,8 +35,8 @@ def line_segments_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_
 				WHERE jp_bbox.bounding_box && (select desired_bounding_box from desired_bounding_box_table)
 				GROUP BY 1, 2
 			) AS bus_stop_pair_frequencies
-			JOIN naptan n_from ON n_from.atcocode = bus_stop_pair_frequencies.from_stoppoint
-			JOIN naptan n_to ON n_to.atcocode = bus_stop_pair_frequencies.to_stoppoint
+			JOIN naptan n_from ON n_from.atcocode_id = bus_stop_pair_frequencies.from_stoppoint
+			JOIN naptan n_to ON n_to.atcocode_id = bus_stop_pair_frequencies.to_stoppoint
 
 			-- if this was an "and" relation, it might speed things up by filtering out a large
 			-- number of naptan points before joining... but currently it appears to make no
@@ -69,7 +69,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 		bus_stops = {}
 		cur.execute("""
 			SELECT
-				atcocode,
+				atcocode_id,
 				name,
 				latitude,
 				longitude
@@ -136,14 +136,14 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 		atcocode_list = tuple(atcocode_sets - set(bus_stops.keys())) or ('nothing',)
 		cur.execute("""
 			SELECT
-				atcocode,
+				atcocode_id,
 				name,
 				latitude,
 				longitude
 			FROM
 				naptan
 
-			WHERE atcocode IN %s
+			WHERE atcocode_id IN %s
 		""", (atcocode_list,))
 		for stop_id, name, latitude, longitude in cur:
 			bus_stops[stop_id] = {
@@ -196,13 +196,13 @@ def line_segments_and_stops_for_journeypattern(conn, journeypattern_id, day_of_w
 		if atcocode_list:
 			cur.execute("""
 				SELECT
-					atcocode,
+					atcocode_id,
 					latitude,
 					longitude
 				FROM
 					naptan
 
-				WHERE atcocode IN %s
+				WHERE atcocode_id IN %s
 				AND point(latitude, longitude) <@ (SELECT jp_bbox.bounding_box FROM mv_journeypattern_bounding_box jp_bbox WHERE journeypattern_id = %s)
 			""", (
 				tuple(atcocode_list),

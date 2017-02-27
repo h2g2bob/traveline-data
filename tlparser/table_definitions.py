@@ -33,14 +33,25 @@ TABLE_COMMANDS = [
 	_table_command_intern("routelink"),
 
 	("""
+		DROP TABLE IF EXISTS naptan;
+		""", """
+		CREATE TABLE naptan (
+			atcocode_id SERIAL PRIMARY KEY,
+			atcocode TEXT UNIQUE,
+			code TEXT UNIQUE,
+			name TEXT,
+			latitude REAL,
+			longitude REAL)
+		"""),
+	("""
 		DROP TABLE IF EXISTS routelink CASCADE;
 		""", """
 		CREATE TABLE routelink(
 			source_id INT REFERENCES source(source_id),
 			routelink_id INT PRIMARY KEY REFERENCES routelink_intern(routelink_id),
 			routesection TEXT,
-			from_stoppoint TEXT,
-			to_stoppoint TEXT,
+			from_stoppoint INT REFERENCES stoppoint(atcocode_id),
+			to_stoppoint INT REFERENCES stoppoint(atcocode_id),
 			direction TEXT);
 		"""),
 	("""
@@ -92,9 +103,9 @@ TABLE_COMMANDS = [
 			routelink_id INT REFERENCES routelink(routelink_id) DEFERRABLE,
 			runtime TEXT,
 			from_sequence INT,
-			from_stoppoint TEXT,
+			from_stoppoint INT REFERENCES stoppoint(atcocode_id),
 			to_sequence INT,
-			to_stoppoint TEXT);
+			to_stoppoint INT REFERENCES stoppoint(atcocode_id));
 		"""),
 	("""
 		DROP TABLE IF EXISTS line CASCADE;
@@ -132,7 +143,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE stoppoint(
 			source_id INT REFERENCES source(source_id),
-			stoppoint TEXT PRIMARY KEY,
+			atcocode_id INT REFERENCES naptan(atcocode_id),
 			name TEXT,
 			indicator TEXT,
 			locality_name TEXT,
@@ -153,28 +164,6 @@ def create_tables(conn):
 			cur.execute(drop)
 		for _, create in TABLE_COMMANDS:
 			cur.execute(create)
-		cur.execute("""
-			CREATE INDEX idx_timing_section ON jptiminglink(jpsection_id);
-		""")
-		cur.execute("""
-			CREATE INDEX idx_journeypattern_bounding_box
-			ON journeypattern_bounding_box
-			USING gist (bounding_box);
-		""")
-
-def create_naptan_tables(conn):
-	with conn.cursor() as cur:
-		cur.execute("""
-			DROP TABLE IF EXISTS naptan;
-		""")
-		cur.execute("""
-			CREATE TABLE naptan (
-				atcocode TEXT PRIMARY KEY,
-				code TEXT UNIQUE,
-				name TEXT,
-				latitude REAL,
-				longitude REAL)
-		""")
 
 		# https://www.postgresql.org/docs/current/static/functions-geometry.html
 		# This query works along the lines of:
@@ -185,6 +174,14 @@ def create_naptan_tables(conn):
 			USING gist (point(latitude, longitude));
 		""")
 
+		cur.execute("""
+			CREATE INDEX idx_timing_section ON jptiminglink(jpsection_id);
+		""")
+		cur.execute("""
+			CREATE INDEX idx_journeypattern_bounding_box
+			ON journeypattern_bounding_box
+			USING gist (bounding_box);
+		""")
 
 def drop_materialized_views(conn):
 	with conn.cursor() as cur:
@@ -273,12 +270,21 @@ def update_journeypattern_boundingbox(conn, journeypattern_id):
 							(select max(maxlong) from (select max(n_from.longitude) as maxlong union select max(n_to.longitude) as maxlong) as tmaxling))) AS bounding_box
 				FROM jptiminglink timing
 				JOIN journeypattern_service_section section USING (jpsection_id)
-				JOIN naptan n_from ON n_from.atcocode = timing.from_stoppoint
-				JOIN naptan n_to ON n_to.atcocode = timing.to_stoppoint
+				JOIN naptan n_from ON n_from.atcocode_id = timing.from_stoppoint
+				JOIN naptan n_to ON n_to.atcocode_id = timing.to_stoppoint
 				WHERE section.journeypattern_id = %s
 				GROUP BY section.journeypattern_id;
 				""", (journeypattern_id,))
 
+def id_from_actocode(conn, atcocode):
+	with cur as conn.cursor():
+		cur.execute("""
+			SELECT atcocode_id
+			FROM naptan
+			WHERE atcocode = %s;
+			""", (atcocode,))
+		[[atcocode_id]] = cur
+		return atcocode_id
 
 def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
