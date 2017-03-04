@@ -18,7 +18,7 @@ def process_all_files(conn):
 			""", (code, atcocode, name, latitude, longitude,))
 
 def get_datapoints_from_xml():
-	with zipfile.ZipFile("naptan/NaPTANxml.zip") as container:
+	with zipfile.ZipFile("naptandata/NaPTANxml.zip") as container:
 		[contentname] = container.namelist()
 		with container.open(contentname) as f:
 			parser = etree.XMLPullParser(events=("end",), no_network=True)
