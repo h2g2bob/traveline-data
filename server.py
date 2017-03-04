@@ -39,6 +39,11 @@ def map_page():
 	with open("map_page.html") as f:
 		return f.read()
 
+@app.route('/datasources/')
+def datasources():
+	with open("data_sources.html") as f:
+		return f.read()
+
 @app.route('/json/')
 def format_json():
 	boundingbox = boundingbox_from_request()
