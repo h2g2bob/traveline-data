@@ -133,23 +133,24 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 		# We want to draw lines whuch have a bus stop inside and a bus stop outside
 		# the requested bounding box. We query the extra bus stops we need with this
 		# inefficient query (which will probably do a loop over the index on atcocode)
-		atcocode_list = tuple(atcocode_sets - set(bus_stops.keys())) or ('nothing',)
-		cur.execute("""
-			SELECT
-				atcocode_id,
-				name,
-				latitude,
-				longitude
-			FROM
-				naptan
+		atcocode_list = tuple(atcocode_sets - set(bus_stops.keys()))
+		if atcocode_list:
+			cur.execute("""
+				SELECT
+					atcocode_id,
+					name,
+					latitude,
+					longitude
+				FROM
+					naptan
 
-			WHERE atcocode_id IN %s
-		""", (atcocode_list,))
-		for stop_id, name, latitude, longitude in cur:
-			bus_stops[stop_id] = {
-				"name": name,
-				"lat": latitude,
-				"lng": longitude}
+				WHERE atcocode_id IN %s
+			""", (atcocode_list,))
+			for stop_id, name, latitude, longitude in cur:
+				bus_stops[stop_id] = {
+					"name": name,
+					"lat": latitude,
+					"lng": longitude}
 
 	return {"pairs": bus_stop_pairs, "stops": bus_stops}
 
