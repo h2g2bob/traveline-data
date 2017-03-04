@@ -1,7 +1,8 @@
 #!/usr/bin/python3
+from .table_definitions import interned_atcocode
 from lxml import etree
-import zipfile
 import logging
+import zipfile
 
 # Appears to be:
 # <Place>
@@ -12,10 +13,11 @@ import logging
 def process_all_files(conn):
 	with conn.cursor() as cur:
 		for code, atcocode, name, latitude, longitude in get_datapoints_from_xml():
+			atcocode_id = interned_atcocode(conn, atcocode)
 			cur.execute("""
-				INSERT INTO naptan (code, atcocode, name, latitude, longitude)
+				INSERT INTO naptan (atcocode_id, code, name, latitude, longitude)
 				VALUES (%s, %s, %s, %s, %s);
-			""", (code, atcocode, name, latitude, longitude,))
+			""", (atcocode_id, code, name, latitude, longitude,))
 
 def get_datapoints_from_xml():
 	with zipfile.ZipFile("naptandata/NaPTANxml.zip") as container:

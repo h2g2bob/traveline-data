@@ -18,6 +18,10 @@ def _table_command_intern(tablename):
 	- if we re-upload a file, we can no longer delete the old data but
 	  keep all the old ids (which might be useful, maybe? eg: for
 	  comparing old and new datasets)
+
+	- it's especially needed for naptan and travelinedata, because it's
+	  100% certain that not all items refered to by one dataset are in
+	  the other dataset.
 	"""
 
 	return ("""
@@ -49,11 +53,17 @@ TABLE_COMMANDS = [
 	_table_command_intern("routelink"),
 
 	("""
+		DROP TABLE IF EXISTS atcocode_intern;
+		""", """
+		CREATE TABLE atcocode_intern(
+			atcocode_id SERIAL PRIMARY KEY,
+			atcocode TEXT UNIQUE)
+		"""),
+	("""
 		DROP TABLE IF EXISTS naptan;
 		""", """
 		CREATE TABLE naptan (
-			atcocode_id SERIAL PRIMARY KEY,
-			atcocode TEXT UNIQUE,
+			atcocode_id INT PRIMARY KEY REFERENCES atcocode_intern(atcocode_id),
 			code TEXT UNIQUE,
 			name TEXT,
 			latitude REAL,
@@ -63,8 +73,9 @@ TABLE_COMMANDS = [
 		DROP TABLE IF EXISTS stoppoint CASCADE;
 		""", """
 		CREATE TABLE stoppoint(
-			source_id INT REFERENCES source(source_id),
-			atcocode_id INT REFERENCES naptan(atcocode_id),
+			-- may exist in multiple files, but we assume it's the
+			-- same in all the files, so we miss out source_id
+			atcocode_id INT PRIMARY KEY REFERENCES atcocode_intern(atcocode_id),
 			name TEXT,
 			indicator TEXT,
 			locality_name TEXT,
@@ -77,8 +88,8 @@ TABLE_COMMANDS = [
 			source_id INT REFERENCES source(source_id),
 			routelink_id INT PRIMARY KEY REFERENCES routelink_intern(routelink_id),
 			routesection TEXT,
-			from_stoppoint INT REFERENCES stoppoint(atcocode_id),
-			to_stoppoint INT REFERENCES stoppoint(atcocode_id),
+			from_stoppoint INT REFERENCES stoppoint(atcocode_id) DEFERRABLE,
+			to_stoppoint INT REFERENCES stoppoint(atcocode_id) DEFERRABLE,
 			direction TEXT);
 		"""),
 	("""
@@ -177,8 +188,10 @@ TABLE_COMMANDS = [
 def create_tables(conn):
 	with conn.cursor() as cur:
 		for drop, _ in reversed(TABLE_COMMANDS):
+			logging.info("sql %s", drop)
 			cur.execute(drop)
 		for _, create in TABLE_COMMANDS:
+			logging.info("sql %s", create)
 			cur.execute(create)
 
 		# https://www.postgresql.org/docs/current/static/functions-geometry.html
@@ -213,7 +226,7 @@ def refresh_materialized_views(conn):
 
 def create_materialized_views(conn):
 	with conn.cursor() as cur:
-		logging.info("Generating mv_vehiclejourney_per_hour...")
+		logging.info("Defining mv_vehiclejourney_per_hour...")
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
 			SELECT
@@ -292,16 +305,6 @@ def update_journeypattern_boundingbox(conn, journeypattern_id):
 				GROUP BY section.journeypattern_id;
 				""", (journeypattern_id,))
 
-def id_from_actocode(conn, atcocode):
-	with conn.cursor() as cur:
-		cur.execute("""
-			SELECT atcocode_id
-			FROM naptan
-			WHERE atcocode = %s;
-			""", (atcocode,))
-		[[atcocode_id]] = cur
-		return atcocode_id
-
 def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
 		sql = """
@@ -346,3 +349,24 @@ def interned_route(conn, source_id, route):
 
 def interned_routelink(conn, source_id, routelink):
 	return _interned('routelink', conn, source_id, routelink)
+
+def interned_atcocode(conn, atcocode):
+	"No source_id for this one"
+	with conn.cursor() as cur:
+		sql = """
+			SELECT atcocode_id
+			FROM atcocode_intern
+			WHERE atcocode = %s
+		"""
+		cur.execute(sql, (atcocode,))
+		rows = list(cur)
+		if len(rows) == 0:
+			sql = """
+				INSERT INTO atcocode_intern(atcocode)
+				VALUES (%s)
+				RETURNING atcocode_id
+			"""
+			cur.execute(sql, (atcocode,))
+			rows = list(cur)
+		[[short_id]] = rows
+		return short_id
