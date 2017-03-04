@@ -18,10 +18,10 @@ PARSERS = {
 	'Route': add_route,
 }
 
-def process_all_files(conn):
+def process_all_files(conn, test_data_only):
 	for zip_filename in list_zip_filenames():
 		logging.info("Processing zip file %s...", zip_filename)
-		process_zipfile(conn, zip_filename)
+		process_zipfile(conn, zip_filename, test_data_only)
 
 def list_zip_filenames():
 	return [
@@ -29,10 +29,13 @@ def list_zip_filenames():
 		for name in os.listdir("travelinedata/")
 		if name.endswith(".zip")]
 
-def process_zipfile(conn, zip_filename):
+def process_zipfile(conn, zip_filename, test_data_only=False):
 	with zipfile.ZipFile(zip_filename) as container:
 		for contentname in container.namelist():
 			source = zip_filename.split("/")[-1] + "/" + contentname
+			if test_data_only and not test_data_filter(source):
+				continue
+
 			with conn as transaction_conn:
 
 				# We don't know if we'll be told about things in the correct order
@@ -49,12 +52,12 @@ def process_zipfile(conn, zip_filename):
 						except Exception:
 							logging.exception("Skipping file %s (%r)", source, source_id)
 
-def source_id_if_not_already_inserted(conn, source):
-	# Only do the southend area
-	USE_TESTING_DATA_ONLY = False
-	if USE_TESTING_DATA_ONLY and not source.startswith("SE.zip/set_5-"):
-		return None
 
+def test_data_filter(source):
+	return source.startswith("SE.zip/set_5-")
+
+
+def source_id_if_not_already_inserted(conn, source):
 	with conn.cursor() as cur:
 		cur.execute("""
 			insert into source(source) values (%s)

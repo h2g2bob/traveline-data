@@ -43,6 +43,9 @@ def main():
 	if args.process:
 		conn = psycopg2.connect(args.database)
 		traveline_file_parser.process_all_files(conn)
+	elif args.process_test_data:
+		conn = psycopg2.connect(args.database)
+		traveline_file_parser.process_all_files(conn, test_data_only=True)
 
 	if args.generate:
 		with psycopg2.connect(args.database) as conn:
@@ -59,6 +62,7 @@ def parse_args():
 	parser.add_argument('--naptan', help='import the data from naptan', action="store_true", default=False)
 	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
 	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
+	parser.add_argument('--process-test-data', help='import a small subset of travelinedata', action="store_true", dest="process_test_data", default=False)
 	parser.add_argument('--generate', help='generate a table used as an index', action="store_true", default=False)
 	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
 	parser.add_argument('--database', help='databse location', default="dbname=travelinedata")
