@@ -4,6 +4,22 @@
 import logging
 
 def _table_command_intern(tablename):
+	"""
+	What's with the intern tables?
+
+	Well, it solves the following problems:
+
+	- If the data is in the xml file in the "wrong" order? We won't
+	  have a routelink_id to use.
+
+	- While the inserts are slower, the table we *want to query a lot*
+	  gets a lot bigger
+
+	- if we re-upload a file, we can no longer delete the old data but
+	  keep all the old ids (which might be useful, maybe? eg: for
+	  comparing old and new datasets)
+	"""
+
 	return ("""
 		DROP TABLE IF EXISTS %(tablename)s_intern;
 		""" % dict(tablename=tablename), """
