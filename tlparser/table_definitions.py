@@ -277,7 +277,7 @@ def update_journeypattern_boundingbox(conn, journeypattern_id):
 				""", (journeypattern_id,))
 
 def id_from_actocode(conn, atcocode):
-	with cur as conn.cursor():
+	with conn.cursor() as cur:
 		cur.execute("""
 			SELECT atcocode_id
 			FROM naptan
