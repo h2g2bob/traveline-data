@@ -60,6 +60,17 @@ TABLE_COMMANDS = [
 			longitude REAL)
 		"""),
 	("""
+		DROP TABLE IF EXISTS stoppoint CASCADE;
+		""", """
+		CREATE TABLE stoppoint(
+			source_id INT REFERENCES source(source_id),
+			atcocode_id INT REFERENCES naptan(atcocode_id),
+			name TEXT,
+			indicator TEXT,
+			locality_name TEXT,
+			locality_qualifier TEXT);
+		"""),
+	("""
 		DROP TABLE IF EXISTS routelink CASCADE;
 		""", """
 		CREATE TABLE routelink(
@@ -153,17 +164,6 @@ TABLE_COMMANDS = [
 			source_id INT REFERENCES source(source_id),
 			operator_id TEXT PRIMARY KEY,
 			shortname TEXT);
-		"""),
-	("""
-		DROP TABLE IF EXISTS stoppoint CASCADE;
-		""", """
-		CREATE TABLE stoppoint(
-			source_id INT REFERENCES source(source_id),
-			atcocode_id INT REFERENCES naptan(atcocode_id),
-			name TEXT,
-			indicator TEXT,
-			locality_name TEXT,
-			locality_qualifier TEXT);
 		"""),
 	("""
 		DROP TABLE IF EXISTS journeypattern_bounding_box;
