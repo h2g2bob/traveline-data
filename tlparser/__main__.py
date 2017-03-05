@@ -6,6 +6,7 @@ import logging
 from .table_definitions import create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views, update_all_journeypattern_boundingbox
 from . import naptan_file_parser
 from . import traveline_file_parser
+from . import codepoint_parser
 
 # Appears to be:
 # <StopPoints>
@@ -40,6 +41,10 @@ def main():
 		with psycopg2.connect(args.database) as conn:
 			naptan_file_parser.process_all_files(conn)
 
+	if args.codepoint:
+		with psycopg2.connect(args.database) as conn:
+			codepoint_parser.process_all(conn)
+
 	if args.process:
 		conn = psycopg2.connect(args.database)
 		traveline_file_parser.process_all_files(conn)
@@ -59,8 +64,9 @@ def main():
 
 def parse_args():
 	parser = argparse.ArgumentParser(prog='Process traveline data')
-	parser.add_argument('--naptan', help='import the data from naptan', action="store_true", default=False)
 	parser.add_argument('--destroy_create_tables', help='Drop and re-create all the travelinedata tables', action="store_true", default=False)
+	parser.add_argument('--naptan', help='import the data from naptan', action="store_true", default=False)
+	parser.add_argument('--codepoint', help='import codepoint (postcode) data', action="store_true", default=False)
 	parser.add_argument('--process', help='import the data from the given zip file', action="store_true", default=False)
 	parser.add_argument('--process-test-data', help='import a small subset of travelinedata', action="store_true", dest="process_test_data", default=False)
 	parser.add_argument('--generate', help='generate a table used as an index', action="store_true", default=False)

@@ -182,6 +182,13 @@ TABLE_COMMANDS = [
 		CREATE TABLE journeypattern_bounding_box (
 			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id),
 			bounding_box box);
+		"""),
+	("""
+		DROP TABLE IF EXISTS oscodepointdata;
+		""", """
+		CREATE TABLE oscodepointdata(
+			postcode TEXT PRIMARY KEY,
+			location point NOT NULL);
 		""")]
 
 
@@ -201,6 +208,11 @@ def create_tables(conn):
 			CREATE INDEX idx_naptan_point
 			ON naptan
 			USING gist (point(latitude, longitude));
+		""")
+		cur.execute("""
+			CREATE INDEX idx_oscodepointdata_point
+			ON oscodepointdata
+			USING gist (location);
 		""")
 
 		cur.execute("""
