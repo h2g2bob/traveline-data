@@ -36,12 +36,12 @@ def boundingbox_from_request():
 
 @app.route('/')
 def map_page():
-	with open("map_page.html") as f:
+	with open("map_page.html", "rb") as f:
 		return f.read()
 
 @app.route('/datasources/')
 def datasources():
-	with open("data_sources.html") as f:
+	with open("data_sources.html", "rb") as f:
 		return f.read()
 
 @app.route('/json/')
