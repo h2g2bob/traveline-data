@@ -7,6 +7,7 @@ Getting started
 
 Make a blank database:
 ```sh
+sudo apt-get install python3-pscopg2 python3-flask python3-lxml libapache2-mod-wsgi-py3
 sudo -u postgres createdb travelinedata -O "$USER"
 python3 -m tlparser --destroy_create_tables
 ```
