@@ -375,8 +375,17 @@ TLDataPaint.prototype = {
 };
 
 window.addEventListener("load", function () {
+	function number_from_url(key, dfault) {
+		var match = RegExp(key + "=([0-9-\.]+)").exec(window.location.href);
+		return match !== null ? parseFloat(match[1]) : dfault;
+	}
+
 	var paint = new TLDataPaint(document.getElementById("map_paint_area"));
-	window.travelinedatamap = new TravelineDataMap(document.getElementById("map_paint_container"), paint, lng2slng(0.698), lat2slat(51.566));
+	window.travelinedatamap = new TravelineDataMap(
+		document.getElementById("map_paint_container"),
+		paint,
+		lng2slng(number_from_url("lng", 0.698)),
+		lat2slat(number_from_url("lat", 51.566)));
 	window.travelinedatamap.run();
 
 	var step_size = 100
