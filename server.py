@@ -47,6 +47,10 @@ def datasources():
 def map_page_js():
 	return send_from_directory("static", "map_page.js")
 
+@app.route('/map_page.css')
+def map_page_css():
+	return send_from_directory("static", "map_page.css")
+
 @app.route('/json/')
 def format_json():
 	boundingbox = boundingbox_from_request()
