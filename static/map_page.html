@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<!--
+- factor out hard-coded lat/lng/zoom ... ie: some sort of #!... anchor
+- make curvy lines (probably don't bother)
+- let people specify (time of day/day of week) OR (frequent all day) OR (single line frequency at time/dow) OR (some other conditions)
+- show town names somehow?
+-->
+<title>Bus routes</title>
+<style type="text/css">
+svg {
+	background: #003366;
+}
+
+svg path {
+	fill: white;
+	fill-opacity: 0;
+	stroke: white;
+	stroke-opacity: 1;
+	stroke-width: 1px;
+}
+
+svg path[frequency=high] {
+}
+svg path[frequency=medium] {
+	opacity: 0.3;
+}
+svg path[frequency=low] {
+	opacity: 0.1;
+}
+
+svg circle.stop {
+	opacity: 0;
+	fill: #ffff80;
+	stroke: none;
+}
+svg circle.stop:hover {
+	opacity: 0.5;
+}
+
+.fullscreen {
+	height: 100vh;
+	width: 100vw;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+}
+
+#controls {
+	position: absolute;
+	top: 0;
+	right: 0;
+	background: #000000;
+	color: #00cc00;
+}
+#controls button {
+	width: 10vw;
+	height: 10vh;
+}
+
+#stop_name {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	background: #000000;
+	color: #00cc00;
+}
+
+#datasources {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	background: #000000;
+	color: #ccccff;
+}
+#datasources a {
+	background: #000000;
+	color: #ccccff;
+}
+
+</style>
+<script type="application/javascript" src="/map_page.js"></script>
+</head>
+<body class="fullscreen">
+<div id="map_paint_container" class="fullscreen"><svg style="width: 100%; height: 100%" xmlns="http://www.w3.org/2000/svg">
+	<g id="map_paint_area">
+	</g>
+</svg></div>
+<div id="controls"></div>
+<div id="stop_name"></div>
+<div id="datasources"><a href="/datasources/" target="_new">Copyright and Open Data sources</a></div>
+</body>

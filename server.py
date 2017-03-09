@@ -9,10 +9,11 @@ import psycopg2
 import json
 import logging
 from flask import Flask
-from flask import request
 from flask import jsonify
+from flask import request
+from flask import send_from_directory
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 
 
 def database():
@@ -36,13 +37,15 @@ def boundingbox_from_request():
 
 @app.route('/')
 def map_page():
-	with open("map_page.html", "rb") as f:
-		return f.read()
+	return send_from_directory("static", "map_page.html")
 
 @app.route('/datasources/')
 def datasources():
-	with open("data_sources.html", "rb") as f:
-		return f.read()
+	return send_from_directory("static", "data_sources.html")
+
+@app.route('/map_page.js')
+def map_page_js():
+	return send_from_directory("static", "map_page.js")
 
 @app.route('/json/')
 def format_json():
