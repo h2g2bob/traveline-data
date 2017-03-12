@@ -90,22 +90,16 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 
 		cur.execute("""
 			SELECT
-				timing.from_stoppoint,
-				timing.to_stoppoint,
-				sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency,
-				array_agg(distinct line.line_name) AS line_names
-
-			FROM jptiminglink timing
-			JOIN journeypattern_service_section section USING (jpsection_id)
-			JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-			JOIN journeypattern_bounding_box jp_bbox USING (journeypattern_id)
-			LEFT JOIN line line ON vjph.line_id = line.line_id
-			WHERE jp_bbox.bounding_box && box(point(%s, %s), point(%s, %s))
+				lf.from_stoppoint,
+				lf.to_stoppoint,
+				sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency
+			FROM mv_link_frequency lf
+			WHERE lf.line && box(point(%s, %s), point(%s, %s))
 			GROUP BY 1, 2
 			""", (day_of_week, minlat, minlng, maxlat, maxlng,))
 		bus_stop_pairs = []
 		atcocode_sets = set()
-		for from_id, to_id, frequency, line_names in cur:
+		for from_id, to_id, frequency in cur:
 
 			if frequency < min_freq:
 				continue
@@ -120,8 +114,7 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 			bus_stop_pairs.append({
 				"from": from_id,
 				"to": to_id,
-				"frequency": int(frequency),
-				"line_names": line_names})
+				"frequency": int(frequency)})
 
 			atcocode_sets.add(from_id)
 			atcocode_sets.add(to_id)
