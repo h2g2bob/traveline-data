@@ -16,6 +16,11 @@ from flask import send_from_directory
 app = Flask(__name__, static_url_path='')
 
 
+# Forbid requests for very large areas
+# We're really protected by statement_timeout, so this can be fairly relaxed
+AREA_TOO_LARGE=4.0
+
+
 def database():
 	return psycopg2.connect("dbname=travelinedata")
 
@@ -27,7 +32,7 @@ def statement_timeout(conn, seconds):
 def boundingbox_from_request():
 	height = float(request.args['height'])
 	width = float(request.args['width'])
-	if width * height > 0.25:
+	if width * height > AREA_TOO_LARGE:
 		raise ValueError("Area too large (forbidden)")
 	return dict(
 		minlat=float(request.args['lat']),
