@@ -47,14 +47,12 @@ TravelineDataMap.prototype = {
 
 	fetch_more_data: function () {
 		function min_freq_from_zoom(zoom) {
-			if (zoom > 3000) {
+			if (zoom > 2000) {
 				return "1";
-			} else if (zoom > 2000) {
+			} else if (zoom > 500) {
 				return "2";
-			} else if (zoom > 1000) {
-				return "4";
 			} else {
-				return "8";
+				return "4";
 			}
 		}
 
