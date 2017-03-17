@@ -2,6 +2,11 @@
 # encoding: utf8
 
 
+# Lines greater than MAX_LINE_LENGTH are likely to be from naptan stops being
+# located wrongly, so drop them.
+MAX_LINE_LENGTH=1.0
+
+
 def line_segments_in_boundingbox(conn, minlat, minlong, maxlat, maxlong, day_of_week=0x01, hour=12):
 	assert 0 <= hour < 24
 	hour_column = 'hour_%d' % (hour,)
@@ -95,8 +100,9 @@ def line_segments_and_stops_in_boundingbox(conn, minlat, minlng, maxlat, maxlng,
 				sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency
 			FROM mv_link_frequency lf
 			WHERE lf.line && box(point(%s, %s), point(%s, %s))
+			AND length(lseg(lf.line)) < %s
 			GROUP BY 1, 2
-			""", (day_of_week, minlat, minlng, maxlat, maxlng,))
+			""", (day_of_week, minlat, minlng, maxlat, maxlng, MAX_LINE_LENGTH,))
 		bus_stop_pairs = []
 		atcocode_sets = set()
 		for from_id, to_id, frequency in cur:
