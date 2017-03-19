@@ -92,6 +92,22 @@ def format_dot():
 			for point in points
 		) + '\n}'
 
+@app.route('/postcode_to_ll/<postcode>')
+def postcode_to_ll(postcode):
+	with database() as conn:
+		with conn.cursor() as cur:
+			cur.execute("""
+				SELECT location[0], location[1]
+				FROM oscodepointdata
+				WHERE postcode = %s;
+				""", (postcode.strip(" ").upper(),))
+			rows = list(cur)
+			if rows:
+				[[lat, lng]] = rows
+				return jsonify({"result": True, "lat": lat, "lng": lng})
+			else:
+				return jsonify({"result": False})
+
 if __name__ == '__main__':
 	logging.basicConfig(level=logging.INFO)
 	app.run()
