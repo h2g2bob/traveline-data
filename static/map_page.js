@@ -57,18 +57,13 @@ TravelineDataMap.prototype = {
 		}
 
 
-		this.paint.debug_show_requested_data("requested", this.data_already_requested, "stroke: #800000; fill: transparent;");
+		this.paint.debug_show_requested_data("requested", this.data_already_requested);
 
 		var next_download = this.calculate_region_to_dowload_next();
 
 		if (next_download !== null) {
 			var debug_name = "next_" + Math.random()
-
-			/*
-			this.paint.debug_show_requested_data(debug_name, next_download, "stroke: transparent; fill: #" + (Math.random() < 0.5?"ff":"00") + (Math.random() < 0.5?"ff":"00") + (Math.random() < 0.5?"ff":"00") + "; opacity: 0.05;");
-			*/
-
-			var currently_downloading = this.paint.show_downloading_indication(next_download, "stroke: transparent; fill: black; opacity: 0.7;");
+			var currently_downloading = this.paint.show_downloading_indication(next_download);
 
 			console.log("should download " + next_download);
 
@@ -113,7 +108,7 @@ TravelineDataMap.prototype = {
 		}
 
 		var desired = this.current_viewport();
-		this.paint.debug_show_requested_data("viewport", desired, "stroke: #008080; fill: transparent;");
+		this.paint.debug_show_requested_data("viewport", desired);
 
 		if (desired.maxslat > this.data_already_requested.maxslat) {
 			/* expand down */
@@ -231,23 +226,23 @@ TLDataPaint.prototype = {
 		}
 	},
 
-	show_downloading_indication: function (box, style) {
+	show_downloading_indication: function (box) {
 		var path = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 		path.setAttribute("y", this.scale(box.minslat));
 		path.setAttribute("x", this.scale(box.minslng));
 		path.setAttribute("height", this.scale(box.maxslat - box.minslat));
 		path.setAttribute("width", this.scale(box.maxslng - box.minslng));
-		path.setAttribute("style", style);
+		path.setAttribute("class", "being-downloaded");
 		this.svg.appendChild(path);
 		return path;
 	},
 
-	debug_show_requested_data: function (name, box, style) {
+	debug_show_requested_data: function (name, box) {
 		var path = document.getElementById(name);
 		if (path == undefined) {
 			var path = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			path.setAttribute("id", name);
-			path.setAttribute("class", "debug-download-indication");
+			path.setAttribute("class", "debug-marker");
 
 			// add this at the top of the element list, so that it gets rendered first
 			// ie: underneath the stops, which have user interaction
@@ -264,7 +259,6 @@ TLDataPaint.prototype = {
 		path.setAttribute("x", this.scale(box.minslng));
 		path.setAttribute("height", this.scale(box.maxslat - box.minslat));
 		path.setAttribute("width", this.scale(box.maxslng - box.minslng));
-		path.setAttribute("style", style);
 	},
 
 	path_description: function (data, pair) {
