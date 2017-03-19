@@ -188,6 +188,7 @@ TABLE_COMMANDS = [
 		""", """
 		CREATE TABLE oscodepointdata(
 			postcode TEXT PRIMARY KEY,
+			display TEXT NOT NULL,
 			location point NOT NULL);
 		""")]
 
