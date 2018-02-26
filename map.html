@@ -19,13 +19,13 @@
 	var handle_updated_viewport = function (){
 		var pattern = "/json/?lat={lat}&lng={lng}&width={width}&height={height}&min_freq=1"
 
-		var ne = mymap.getBounds().getNorthEast();
-		var sw = mymap.getBounds().getSouthWest();
+		var se = mymap.getBounds().getSouthEast();
+		var nw = mymap.getBounds().getNorthWest();
 		var url = pattern.
-			replace("{lat}", ne.lat).
-			replace("{lng}", ne.lng).
-			replace("{height}", sw.lat - ne.lat).
-			replace("{width}", sw.lng - ne.lng);
+			replace("{lat}", nw.lat).
+			replace("{lng}", nw.lng).
+			replace("{height}", nw.lat - se.lat).
+			replace("{width}", se.lng - nw.lng);
 
 		var xhr = new XMLHttpRequest();
 		xhr.open("GET", url, true);
