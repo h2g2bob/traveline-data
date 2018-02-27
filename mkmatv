@@ -1,0 +1,77 @@
+cat <<HERE
+ CREATE MATERIALIZED VIEW mv_link_frequency_$( echo "$1" | tr '[:upper:]' '[:lower:]' ) AS
+ WITH jptiminglink_subset AS (
+         SELECT jptiminglink.from_stoppoint,
+            jptiminglink.to_stoppoint,
+            jptiminglink.jpsection_id
+           FROM jptiminglink
+             JOIN source USING (source_id)
+          WHERE source.source ~~ '$1.zip/%'::text
+        ), stops_and_frequency AS (
+         SELECT timing.from_stoppoint,
+            timing.to_stoppoint,
+            vjph.days_mask,
+            sum(vjph.hour_0) AS hour_0,
+            sum(vjph.hour_1) AS hour_1,
+            sum(vjph.hour_2) AS hour_2,
+            sum(vjph.hour_3) AS hour_3,
+            sum(vjph.hour_4) AS hour_4,
+            sum(vjph.hour_5) AS hour_5,
+            sum(vjph.hour_6) AS hour_6,
+            sum(vjph.hour_7) AS hour_7,
+            sum(vjph.hour_8) AS hour_8,
+            sum(vjph.hour_9) AS hour_9,
+            sum(vjph.hour_10) AS hour_10,
+            sum(vjph.hour_11) AS hour_11,
+            sum(vjph.hour_12) AS hour_12,
+            sum(vjph.hour_13) AS hour_13,
+            sum(vjph.hour_14) AS hour_14,
+            sum(vjph.hour_15) AS hour_15,
+            sum(vjph.hour_16) AS hour_16,
+            sum(vjph.hour_17) AS hour_17,
+            sum(vjph.hour_18) AS hour_18,
+            sum(vjph.hour_19) AS hour_19,
+            sum(vjph.hour_20) AS hour_20,
+            sum(vjph.hour_21) AS hour_21,
+            sum(vjph.hour_22) AS hour_22,
+            sum(vjph.hour_23) AS hour_23,
+            sum(vjph.hour_0 + vjph.hour_1 + vjph.hour_2 + vjph.hour_3 + vjph.hour_4 + vjph.hour_5 + vjph.hour_6 + vjph.hour_7 + vjph.hour_8 + vjph.hour_9 + vjph.hour_10 + vjph.hour_11 + vjph.hour_12 + vjph.hour_13 + vjph.hour_14 + vjph.hour_15 + vjph.hour_16 + vjph.hour_17 + vjph.hour_18 + vjph.hour_19 + vjph.hour_20 + vjph.hour_21 + vjph.hour_22 + vjph.hour_23) * (((vjph.days_mask >> 0) & 1) + ((vjph.days_mask >> 1) & 1) + ((vjph.days_mask >> 2) & 1) + ((vjph.days_mask >> 3) & 1) + ((vjph.days_mask >> 4) & 1) + ((vjph.days_mask >> 5) & 1) + ((vjph.days_mask >> 6) & 1) + ((vjph.days_mask >> 7) & 1))::numeric AS bus_per_week
+           FROM jptiminglink_subset timing
+             JOIN journeypattern_service_section section USING (jpsection_id)
+             JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
+          GROUP BY timing.from_stoppoint, timing.to_stoppoint, vjph.days_mask
+        )
+ SELECT box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line,
+    stops_and_frequency.from_stoppoint,
+    stops_and_frequency.to_stoppoint,
+    stops_and_frequency.days_mask,
+    stops_and_frequency.hour_0,
+    stops_and_frequency.hour_1,
+    stops_and_frequency.hour_2,
+    stops_and_frequency.hour_3,
+    stops_and_frequency.hour_4,
+    stops_and_frequency.hour_5,
+    stops_and_frequency.hour_6,
+    stops_and_frequency.hour_7,
+    stops_and_frequency.hour_8,
+    stops_and_frequency.hour_9,
+    stops_and_frequency.hour_10,
+    stops_and_frequency.hour_11,
+    stops_and_frequency.hour_12,
+    stops_and_frequency.hour_13,
+    stops_and_frequency.hour_14,
+    stops_and_frequency.hour_15,
+    stops_and_frequency.hour_16,
+    stops_and_frequency.hour_17,
+    stops_and_frequency.hour_18,
+    stops_and_frequency.hour_19,
+    stops_and_frequency.hour_20,
+    stops_and_frequency.hour_21,
+    stops_and_frequency.hour_22,
+    stops_and_frequency.hour_23,
+    stops_and_frequency.bus_per_week
+   FROM stops_and_frequency
+     JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
+     JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id;
+HERE
+

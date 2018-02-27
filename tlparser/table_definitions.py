@@ -281,66 +281,9 @@ def create_materialized_views(conn):
 			USING btree (journeypattern_id);
 		""")
 
-		cur.execute("""
-			CREATE MATERIALIZED VIEW mv_link_frequency AS
-			WITH stops_and_frequency AS (
-			SELECT
-				timing.from_stoppoint,
-				timing.to_stoppoint,
-				vjph.days_mask,
-				sum(hour_0) AS hour_0,
-				sum(hour_1) AS hour_1,
-				sum(hour_2) AS hour_2,
-				sum(hour_3) AS hour_3,
-				sum(hour_4) AS hour_4,
-				sum(hour_5) AS hour_5,
-				sum(hour_6) AS hour_6,
-				sum(hour_7) AS hour_7,
-				sum(hour_8) AS hour_8,
-				sum(hour_9) AS hour_9,
-				sum(hour_10) AS hour_10,
-				sum(hour_11) AS hour_11,
-				sum(hour_12) AS hour_12,
-				sum(hour_13) AS hour_13,
-				sum(hour_14) AS hour_14,
-				sum(hour_15) AS hour_15,
-				sum(hour_16) AS hour_16,
-				sum(hour_17) AS hour_17,
-				sum(hour_18) AS hour_18,
-				sum(hour_19) AS hour_19,
-				sum(hour_20) AS hour_20,
-				sum(hour_21) AS hour_21,
-				sum(hour_22) AS hour_22,
-				sum(hour_23) AS hour_23,
-				sum(
-					hour_0 + hour_1 + hour_2 + hour_3 + hour_4 + hour_5 + hour_6 + hour_7 + hour_8 + hour_9 +
-					hour_10 + hour_11 + hour_12 + hour_13 + hour_14 + hour_15 + hour_16 + hour_17 + hour_18 + hour_19 +
-					hour_20 + hour_21 + hour_22 + hour_23
-					) * (
-					((days_mask>>0) & 1) + ((days_mask>>1) & 1) + ((days_mask>>2) & 1) + ((days_mask>>3) & 1) + ((days_mask>>4) & 1) + ((days_mask>>5) & 1) + ((days_mask>>6) & 1) + ((days_mask>>7) & 1)
-					) as bus_per_week
-			FROM jptiminglink timing
-			JOIN journeypattern_service_section section USING (jpsection_id)
-			JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-			GROUP BY
-				timing.from_stoppoint,
-				timing.to_stoppoint,
-				vjph.days_mask
-			)
-			SELECT
-				lseg(
-					point(from_point.latitude, from_point.longitude),
-					point(to_point.latitude, to_point.longitude)) AS line_segment,
-				stops_and_frequency.*
-			FROM stops_and_frequency
-			JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
-			JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
-			WITH NO DATA;
-		""")
-		# can't make gist index on lseg, so we used box()
-		cur.execute("""
-			CREATE INDEX idx_link_frequency ON mv_link_frequency USING gist (line);
-		""")
+		# XXX
+		# For mv_link_frequency
+		# See ./mkmatv
 
 def update_all_journeypattern_boundingbox(conn):
 	with conn as transaction_conn:
