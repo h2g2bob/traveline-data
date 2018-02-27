@@ -147,6 +147,7 @@ def postcode_to_ll(postcode):
 				return jsonify({"result": False})
 
 def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, frequency_array):
+	frequency_array = [float(freq) for freq in frequency_array]  # Damn you Decimal module
 	return {
 		"type": "Feature",
 		"geometry": {
