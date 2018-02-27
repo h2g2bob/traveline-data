@@ -76,9 +76,8 @@ window.addEventListener("load", function () {
 				style: function (feature) {
 					return feature.properties &&
 						feature.properties.frequeny &&
-						{"color": color_freq(feature.properties.frequeny)};
-					};
-				},
+						{color: color_freq(feature.properties.frequeny)};
+				}
 			});
 			geo_layers.clearLayers();
 			geo_layers.addLayer(geo_layer);
