@@ -1,3 +1,17 @@
+window.addEventListener("load", function () {
+	$( "#postcode" ).autocomplete({
+		source: function( request, response ) {
+			$.ajax({
+				"method": "GET",
+				"url": "/postcode/autocomplete/?prefix=" + request.term,
+				"dataType": "json"
+			}).done(function (body) {
+				response(body["results"]);
+			});
+		}
+	});
+});
+
   window.addEventListener("load", function () {
 	var mymap = L.map('mapid').setView([51.566, 0.698], 13);
 

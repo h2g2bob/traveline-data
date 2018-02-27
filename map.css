@@ -1,1 +1,21 @@
-#mapid { height: 100%; width: 100%; }
+#body {
+	padding: 0;
+	margin: 0;
+}
+
+#mapid {
+	height: 100%;
+	width: 100%;
+	padding: 0;
+	margin: 0;
+}
+
+#controls {
+	position: absolute;
+	top: 0.8em;
+	right: 0.8em;
+	z-index: 1000;
+	background: white;
+	border: 1px #cccccc solid;
+	padding: 0.2em;
+}
