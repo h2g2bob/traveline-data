@@ -81,6 +81,7 @@ def postcode_complete():
 				select postcode
 				from postcodes
 				where postcode like %s || '%%'
+				order by postcode
 				limit 10;
 				""", (prefix,))
 			data = [postcode for [postcode] in cur.fetchall()]
