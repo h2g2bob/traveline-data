@@ -331,7 +331,14 @@ def create_mv_link_frequency2(cur):
 			     JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
 			  GROUP BY timing.from_stoppoint, timing.to_stoppoint, vjph.days_mask
 			)
-		 SELECT lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
+		 SELECT
+		    -- a line segment allows you to draw directly from a
+		    -- query on this table, which is a massive speed improvement
+		    lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
+
+		    -- ... but you can only (easily) have a gist index on a box!
+		    box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS lseg_bbox,
+
 		    stops_and_frequency.from_stoppoint,
 		    stops_and_frequency.to_stoppoint,
 		    stops_and_frequency.days_mask,
@@ -369,14 +376,16 @@ def create_mv_link_frequency2(cur):
 		cur.execute("""
 			CREATE INDEX idx_mv_link_frequency2_%(shard)s
 			ON mv_link_frequency2_%(shard)s
-			USING gist(line_segment);
+			USING gist(lseg_bbox);
 		""" % dict(shard=shard))
 
 	cur.execute("""CREATE VIEW mv_link_frequency2 AS """ + 
 	"""
 		UNION ALL
 	""".join("""
-		 SELECT mv_link_frequency2_%(shard)s.line_segment,
+		 SELECT
+		    mv_link_frequency2_%(shard)s.line_segment,
+		    mv_link_frequency2_%(shard)s.lseg_bbox,
 		    mv_link_frequency2_%(shard)s.from_stoppoint,
 		    mv_link_frequency2_%(shard)s.to_stoppoint,
 		    mv_link_frequency2_%(shard)s.days_mask,
