@@ -69,7 +69,7 @@ window.addEventListener("load", function () {
 				"minlat": bound.getSouth(),
 				"maxlat": bound.getNorth(),
 				"minlng": bound.getWest(),
-				"minlat": bound.getEast(),
+				"maxlng": bound.getEast(),
 			}
 		}).done(function (data) {
 			var geo_layer = L.geojson(data, {
