@@ -20,5 +20,5 @@ CREATE TABLE postcodes (
 
 And:
 ```
-( echo "COPY postcodes (lat, lng, postcode) FROM stdin WITH (FORMAT csv);" && xzcat postcodepoints.csv.xz | tail -n +2 | cut -d , -f 1,2,4 | tr -d ' ' | grep -vE '^,,' ) | psql --single-transaction travelinedata
+( echo "COPY postcodes (lng, lat, postcode) FROM stdin WITH (FORMAT csv);" && xzcat postcodepoints.csv.xz | tail -n +2 | cut -d , -f 1,2,4 | tr -d ' ' | grep -vE '^,,' ) | psql --single-transaction travelinedata
 ```
