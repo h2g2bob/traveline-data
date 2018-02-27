@@ -12,7 +12,7 @@ window.addEventListener("load", function () {
 		select: function(event, ui) {
 			$.ajax({
 				"method": "GET",
-				"url": "/postcode/location/" + this.value,
+				"url": "/postcode/location/" + ui.item.label,
 				"dataType": "json"
 			}).done(function (body) {
 				if (body["lat"] !== undefined) {
