@@ -75,8 +75,8 @@ window.addEventListener("load", function () {
 			var geo_layer = L.geoJSON(data, {
 				style: function (feature) {
 					return feature.properties &&
-						feature.properties.frequeny &&
-						{color: color_freq(feature.properties.frequeny)};
+						feature.properties.frequency &&
+						{color: color_freq(feature.properties.frequency)};
 				}
 			});
 			geo_layers.clearLayers();
