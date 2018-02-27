@@ -18,8 +18,29 @@
 	background: white;
 	border: 1px #cccccc solid;
 	padding: 0.2em;
+	width: 20em;
 }
 
-.ui-front {
+#controls .half {
+	width: 49%;
+	margin: 0;
+}
+
+#controls .ui-front {
 	z-index: 1100;
+}
+
+#controls .key > .line {
+	display: inline-block;
+	width: 5em;
+	font-size: 50%;
+	padding: 0.1em;
+	margin: 0;
+	border-left: 1px black dotted;
+	border-bottom: 0.8em cyan solid;
+}
+
+#controls span.dfn {
+	border-bottom: 1px black dotted;
+	display: inline-block;
 }

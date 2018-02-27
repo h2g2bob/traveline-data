@@ -19,8 +19,32 @@
 
 	<div id="mapid"></div>
 	<div id="controls">
-		<label>Location:</label>
-		<input id="postcode" />
+		<div>
+			<label class="half" for="postcode">Postcode:</label>
+			<input class="half" id="postcode" />
+		</div>
+		<div id="display">
+			<h3>Frequency</h3>
+			<div>
+				<div>
+					<span class="dfn" title="12pm">Daytime</span> <span class="dfn" title="Monday">weekday</span> bus frequencies.
+				</div>
+				<div class="key">
+					Buses per hour:<br />
+					<span class="line" style="border-bottom-color: #ffeedd">1
+					</span><span class="line" style="border-bottom-color: #ffddbb">2
+					</span><span class="line" style="border-bottom-color: #ffcc77">4
+					</span><span class="line" style="border-bottom-color: #ff7700">8
+					</span><span class="line" style="border-bottom-color: #ff0000">12
+					</span>	
+				</div>
+			</div>
+			<h3>Last bus</h3>
+			<div>
+				<label class="half" for="weekday">Day</label>
+				<input class="half" id="weekday" value="M" />
+			</div>
+		</div>
 	</div>
 
 </body>

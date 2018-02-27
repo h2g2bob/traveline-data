@@ -1,5 +1,7 @@
 window.addEventListener("load", function () {
-	$( "#postcode" ).autocomplete({
+	$("#display").accordion();
+
+	$("#postcode").autocomplete({
 		source: function(request, response) {
 			$.ajax({
 				"method": "GET",
