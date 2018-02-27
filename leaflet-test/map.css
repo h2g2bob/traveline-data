@@ -26,7 +26,7 @@
 	margin: 0;
 }
 
-#controls .ui-front {
+.ui-front {
 	z-index: 1100;
 }
 
