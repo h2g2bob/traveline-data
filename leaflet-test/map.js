@@ -14,7 +14,11 @@ window.addEventListener("load", function () {
 
 	/* controls */
 
-	$("#display").accordion();
+	var controls_ui = $("#display").accordion({
+		activate: function( event, ui ) {
+			on_change();
+		}
+	});
 
 	$("#postcode").autocomplete({
 		source: function(request, response) {
@@ -56,7 +60,7 @@ window.addEventListener("load", function () {
 		}
 	};
 
-	var on_change = function() {
+	var on_change_frequencies = function() {
 		var bound = mymap.getBounds();
 		var HOUR = 12;
 		var DAY = "M";
@@ -89,8 +93,72 @@ window.addEventListener("load", function () {
 			geo_layers.addLayer(geo_layer);
 		});
 	};
+
+	function color_last_bus(properties) {
+		if (!properties || !properties.frequencies) {
+			return undefined
+		}
+		if (properties.frequencies[23] > 0) {
+			return "#0000ff"
+		} else if (properties.frequencies[21] > 0 || properties.frequencies[22] > 0) {
+			return "#0077ff"
+		} else if (properties.frequencies[19] > 0 || properties.frequencies[20] > 0) {
+			return "#77ccff"
+		} else if (properties.frequencies[17] > 0 || properties.frequencies[18] > 0) {
+			return "#bbddff"
+		} else if (properties.frequencies[15] > 0 || properties.frequencies[16] > 0) {
+			return "#ddeeff"
+		} else {
+			/* not worth showing */
+			/* also, array could be completetely full of zeros */
+			return undefined;
+		}
+	}
+
+	var on_change_lastbus = function() {
+		var bound = mymap.getBounds();
+		var DAY = "M";
+
+		$.ajax({
+			"method": "GET",
+			"url": "/geojson/",
+			"datatype": "json",
+			"data": {
+				"minlat": bound.getSouth(),
+				"maxlat": bound.getNorth(),
+				"minlng": bound.getWest(),
+				"maxlng": bound.getEast(),
+				"dow": DAY
+			}
+		}).done(function (data) {
+			var geo_layer = L.geoJSON(data, {
+				style: function (feature) {
+					var color = color_last_bus(feature.properties);
+					return {"color": color};
+				},
+				filter: function (feature, layer) {
+					var color = color_last_bus(feature.properties);
+					return color !== undefined;
+				}
+			});
+			geo_layers.clearLayers();
+			geo_layers.addLayer(geo_layer);
+		});
+	};
+
+	var on_change = function() {
+		/* refetch and redraw */
+		var active_tab = controls_ui.accordion("option", "active");
+		if (active_tab == 1) {
+			on_change_lastbus();
+		} else {
+			on_change_frequencies();
+		}
+	};
+
 	mymap.on('moveend', on_change);
 	mymap.on('viewreset', on_change);
 	mymap.on('load', on_change);
 	mymap.setView([51.539691790887, 0.71413324224317], 15);
+
 });
