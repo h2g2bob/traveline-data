@@ -10,7 +10,7 @@ window.addEventListener("load", function () {
 	    id: 'mapbox.light',
 	    accessToken: 'pk.eyJ1IjoiaDJnMmJvYiIsImEiOiJjamUydDB1b3oxb3loMnFxbGdnbWZucmxlIn0.amXanuYenMfuUQxJb4ITKQ'
 	}).addTo(mymap);
-	mymap.setView([51.566, 0.698], 13);
+	mymap.setView([51.566, 0.698], 15);
 
 
 
@@ -35,7 +35,7 @@ window.addEventListener("load", function () {
 				"dataType": "json"
 			}).done(function (body) {
 				if (body["lat"] !== undefined) {
-					mymap.setView([body["lat"], body["lng"]], 13);
+					mymap.setView([body["lat"], body["lng"]], 15);
 				}
 			});
 		}
@@ -58,7 +58,7 @@ window.addEventListener("load", function () {
 		}
 	};
 
-	mymap.on('moveend', function() {
+	var on_change = function() {
 		var bound = mymap.getBounds()
 
 		$.ajax({
@@ -82,7 +82,9 @@ window.addEventListener("load", function () {
 			geo_layers.clearLayers();
 			geo_layers.addLayer(geo_layer);
 		});
-	});
+	};
+	mymap.on('moveend', on_change);
+	mymap.on('viewreset', on_change);
+	mymap.on('load', on_change);
 
-
-  });
+});
