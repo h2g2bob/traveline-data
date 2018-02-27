@@ -210,7 +210,7 @@ def geojson_frequency():
 						sum(hour_21) over (partition by from_stoppoint, to_stoppoint) as hour_21,
 						sum(hour_22) over (partition by from_stoppoint, to_stoppoint) as hour_22,
 						sum(hour_23) over (partition by from_stoppoint, to_stoppoint) as hour_23
-					from mv_link_frequency
+					from mv_link_frequency2
 					where line_segment ?# box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
 					and days_mask & %(dow)s > 0
 				)
