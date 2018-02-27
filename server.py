@@ -214,6 +214,7 @@ def geojson_frequency():
 					request.args.get('minlat'),
 					request.args.get('minlng'),
 					request.args.get('maxlat'),
+					request.args.get('maxlng'),
 					DAY_OF_WEEK_CODE[request.args.get('dow', '')]))
 
 			return jsonify({
