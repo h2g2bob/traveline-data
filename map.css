@@ -19,3 +19,7 @@
 	border: 1px #cccccc solid;
 	padding: 0.2em;
 }
+
+.ui-front {
+	z-index: 1100;
+}
