@@ -72,12 +72,14 @@ window.addEventListener("load", function () {
 	}
 
 	var color_freq = function (freq) {
-		if (freq >= 8) {
+		if (freq >= 12) {
 			return "#ff0000"
-		} else if (freq >=4) {
+		} else if (freq >=8) {
 			return "#ff7700"
-		} else if (freq >=2) {
+		} else if (freq >=4) {
 			return "#ffcc77"
+		} else if (freq >=2) {
+			return "#ffddbb"
 		} else {
 			return "#ffeedd"
 		}
