@@ -72,7 +72,7 @@ window.addEventListener("load", function () {
 				"maxlng": bound.getEast(),
 			}
 		}).done(function (data) {
-			var geo_layer = L.geojson(data, {
+			var geo_layer = L.geoJSON(data, {
 				style: function (feature) {
 					return feature.properties &&
 						feature.properties.frequeny &&
