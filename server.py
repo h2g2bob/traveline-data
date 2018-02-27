@@ -58,6 +58,7 @@ def map_page_css():
 
 @app.route('/postcode/location/<code>/')
 def postcode_location(code):
+	code = code.upper().replace(" ", "")
 	with database() as conn:
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
@@ -72,6 +73,7 @@ def postcode_location(code):
 @app.route('/postcode/autocomplete/')
 def postcode_complete():
 	prefix = request.args.get("prefix", "")
+	prefix = prefix.upper().replace(" ", "")
 	with database() as conn:
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
