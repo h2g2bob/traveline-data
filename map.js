@@ -1,6 +1,6 @@
 window.addEventListener("load", function () {
 	$( "#postcode" ).autocomplete({
-		source: function( request, response ) {
+		source: function(request, response) {
 			$.ajax({
 				"method": "GET",
 				"url": "/postcode/autocomplete/?prefix=" + request.term,
@@ -8,12 +8,24 @@ window.addEventListener("load", function () {
 			}).done(function (body) {
 				response(body["results"]);
 			});
+		},
+		select: function(event, ui) {
+			$.ajax({
+				"method": "GET",
+				"url": "/postcode/location/" + this.value,
+				"dataType": "json"
+			}).done(function (body) {
+				if (body["lat"] !== undefined) {
+					mymap.setView([body["lat"], body["lng"]], 13);
+				}
+			});
 		}
 	});
 });
 
   window.addEventListener("load", function () {
 	var mymap = L.map('mapid').setView([51.566, 0.698], 13);
+	window.mymap = mymap
 
 	var handle_updated_viewport = function (){
 		var pattern = "/json/?lat={lat}&lng={lng}&width={width}&height={height}&min_freq=1"
