@@ -10,8 +10,6 @@ window.addEventListener("load", function () {
 	    id: 'mapbox.light',
 	    accessToken: 'pk.eyJ1IjoiaDJnMmJvYiIsImEiOiJjamUydDB1b3oxb3loMnFxbGdnbWZucmxlIn0.amXanuYenMfuUQxJb4ITKQ'
 	}).addTo(mymap);
-	mymap.setView([51.566, 0.698], 15);
-
 
 
 	/* controls */
@@ -77,6 +75,11 @@ window.addEventListener("load", function () {
 					return feature.properties &&
 						feature.properties.frequency &&
 						{color: color_freq(feature.properties.frequency)};
+				},
+				filter: function (feature, layer) {
+					return feature.properties &&
+						feature.properties.frequency &&
+						(feature.properties.frequency >= 1)
 				}
 			});
 			geo_layers.clearLayers();
@@ -86,5 +89,5 @@ window.addEventListener("load", function () {
 	mymap.on('moveend', on_change);
 	mymap.on('viewreset', on_change);
 	mymap.on('load', on_change);
-
+	mymap.setView([51.539691790887, 0.71413324224317], 15);
 });
