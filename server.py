@@ -139,6 +139,92 @@ def postcode_to_ll(postcode):
 			else:
 				return jsonify({"result": False})
 
+def _one_feature(from_id, from_lat, from_lng, to_id, to_lat, to_lng, frequency, line_names):
+	return {
+		"type": "Feature",
+		"geometry": {
+			"type": "LineString",
+			"coordinates": [
+				[from_lng, from_lat],
+				[to_lng, to_lat],
+				]
+			},
+		"properties": {
+			"popupContent": repr(line_names),
+			"frequency": frequency
+			},
+		"id": 1
+		}
+
+DAY_OF_WEEK_CODE = {
+	'': 0x01,
+	'M': 0x01,
+	'T': 0x02,
+	'W': 0x04,
+	'H': 0x08,
+	'F': 0x10,
+	'S': 0x20,
+	'N': 0x40,
+	}
+
+@app.route('/geojson/')
+def geojson_frequency():
+	hour_column = 'hour_12'
+	with database() as conn:
+		statement_timeout(conn, 10)
+		with conn.cursor() as cur:
+			cur.execute("""
+				WITH desired_bounding_box_table AS (
+					SELECT box(point(%s, %s), point(%s, %s)) AS desired_bounding_box
+				)
+				SELECT
+					bus_stop_pair_frequencies.from_stoppoint,
+					n_from.latitude,
+					n_from.longitude,
+					bus_stop_pair_frequencies.to_stoppoint,
+					n_to.latitude,
+					n_to.longitude,
+					bus_stop_pair_frequencies.frequency,
+					bus_stop_pair_frequencies.line_names
+
+				FROM (
+					SELECT
+						timing.from_stoppoint,
+						timing.to_stoppoint,
+						sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency,
+						array_agg(distinct line.line_name) AS line_names
+
+					FROM jptiminglink timing
+					JOIN journeypattern_service_section section USING (jpsection_id)
+					JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
+					JOIN journeypattern_bounding_box jp_bbox USING (journeypattern_id)
+					LEFT JOIN line line ON vjph.line_id = line.line_id
+					WHERE jp_bbox.bounding_box && (select desired_bounding_box from desired_bounding_box_table)
+					GROUP BY 1, 2
+				) AS bus_stop_pair_frequencies
+				JOIN naptan n_from ON n_from.atcocode_id = bus_stop_pair_frequencies.from_stoppoint
+				JOIN naptan n_to ON n_to.atcocode_id = bus_stop_pair_frequencies.to_stoppoint
+
+				-- if this was an "and" relation, it might speed things up by filtering out a large
+				-- number of naptan points before joining... but currently it appears to make no
+				-- difference to the query plan, so we can stick with an "or" here:
+				WHERE point(n_from.latitude, n_from.longitude) <@ (select desired_bounding_box from desired_bounding_box_table)
+				OR point(n_to.latitude, n_to.longitude) <@ (select desired_bounding_box from desired_bounding_box_table)
+				""", (
+					request.args.get('minlat'),
+					request.args.get('minlng'),
+					request.args.get('maxlat'),
+					DAY_OF_WEEK_CODE[request.args.get('maxlong')]))
+
+			return jsonify({
+				"type": "FeatureCollection",
+				"features": [
+					_one_feature(*row)
+					for row in cur
+					]
+				})
+
+
 if __name__ == '__main__':
 	logging.basicConfig(level=logging.INFO)
 	app.run()

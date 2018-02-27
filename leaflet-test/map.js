@@ -59,19 +59,17 @@ window.addEventListener("load", function () {
 	};
 
 	mymap.on('moveend', function() {
-		var se = mymap.getBounds().getSouthEast();
-		var nw = mymap.getBounds().getNorthWest();
+		var bound = mymap.getBounds()
 
 		$.ajax({
 			"method": "GET",
 			"url": "/geojson/",
 			"datatype": "json",
 			"data": {
-				"lat": nw.lat,
-				"lng": nw.lng,
-				"height": nw.lat - se.lat,
-				"width": se.lng - nw.lng,
-				"min_freq": 1
+				"minlat": bound.getSouth(),
+				"maxlat": bound.getNorth(),
+				"minlng": bound.getWest(),
+				"minlat": bound.getEast(),
 			}
 		}).done(function (data) {
 			var geo_layer = L.geojson(data, {
