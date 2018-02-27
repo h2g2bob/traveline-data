@@ -56,6 +56,34 @@ def map_page_js():
 def map_page_css():
 	return send_from_directory("static", "map_page.css")
 
+@app.route('/postcode/location/<code>/')
+def postcode_location(code):
+	with database() as conn:
+		statement_timeout(conn, 10)
+		with conn.cursor() as cur:
+			cur.execute("""
+				select lat, lng
+				from postcodes
+				where postcode = %s;
+				""", (code,))
+			[[lat, lng]] = cur.fetchall()
+			return jsonify({"lat": lat, "lng": lng})
+
+@app.route('/postcode/autocomplete/')
+def postcode_complete():
+	prefix = request.args.get("prefix", "")
+	with database() as conn:
+		statement_timeout(conn, 10)
+		with conn.cursor() as cur:
+			cur.execute("""
+				select postcode
+				from postcodes
+				where postcode like %s || '%%'
+				limit 10;
+				""", (prefix,))
+			data = [postcode for [postcode] in cur.fetchall()]
+			return jsonify({"results": data})
+
 @app.route('/json/')
 def format_json():
 	boundingbox = boundingbox_from_request()
