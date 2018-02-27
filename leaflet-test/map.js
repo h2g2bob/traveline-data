@@ -57,8 +57,9 @@ window.addEventListener("load", function () {
 	};
 
 	var on_change = function() {
-		var bound = mymap.getBounds()
-		var HOUR = 12
+		var bound = mymap.getBounds();
+		var HOUR = 12;
+		var DAY = "M";
 
 		$.ajax({
 			"method": "GET",
@@ -69,7 +70,7 @@ window.addEventListener("load", function () {
 				"maxlat": bound.getNorth(),
 				"minlng": bound.getWest(),
 				"maxlng": bound.getEast(),
-				"dow": "M"
+				"dow": DAY
 			}
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, {
