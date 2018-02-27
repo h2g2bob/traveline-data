@@ -58,6 +58,7 @@ window.addEventListener("load", function () {
 
 	var on_change = function() {
 		var bound = mymap.getBounds()
+		var HOUR = 12
 
 		$.ajax({
 			"method": "GET",
@@ -68,18 +69,19 @@ window.addEventListener("load", function () {
 				"maxlat": bound.getNorth(),
 				"minlng": bound.getWest(),
 				"maxlng": bound.getEast(),
+				"dow": "M"
 			}
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, {
 				style: function (feature) {
 					return feature.properties &&
-						feature.properties.frequency &&
-						{color: color_freq(feature.properties.frequency)};
+						feature.properties.frequencies &&
+						{color: color_freq(feature.properties.frequencies[HOUR])};
 				},
 				filter: function (feature, layer) {
 					return feature.properties &&
-						feature.properties.frequency &&
-						(feature.properties.frequency >= 1)
+						feature.properties.frequencies &&
+						(feature.properties.frequencies[HOUR] >= 1)
 				}
 			});
 			geo_layers.clearLayers();

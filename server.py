@@ -158,7 +158,7 @@ def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, frequency_a
 				]
 			},
 		"properties": {
-			"frequency": frequency_array[12]
+			"frequencies": frequency_array
 			},
 		"id": 1
 		}
