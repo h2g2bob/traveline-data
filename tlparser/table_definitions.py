@@ -328,9 +328,9 @@ def create_materialized_views(conn):
 				vjph.days_mask
 			)
 			SELECT
-				box(
+				lseg(
 					point(from_point.latitude, from_point.longitude),
-					point(to_point.latitude, to_point.longitude)) AS line,
+					point(to_point.latitude, to_point.longitude)) AS line_segment,
 				stops_and_frequency.*
 			FROM stops_and_frequency
 			JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
