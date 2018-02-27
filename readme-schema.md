@@ -6,7 +6,7 @@ Database schema
 
 How many buses an hour are there between two bus stops (`stoppoint`s), including the geolocations (`line`).
 
-But the geolocations do not have an index.
+This is actually a view into `mv_link_frequency_*` tables, which each have a gist index on the geolocation data (line).
 
 
 `vehiclejourney`

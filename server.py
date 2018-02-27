@@ -146,7 +146,7 @@ def postcode_to_ll(postcode):
 			else:
 				return jsonify({"result": False})
 
-def _one_feature(from_id, from_lat, from_lng, to_id, to_lat, to_lng, frequency, line_names):
+def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, frequency_array):
 	return {
 		"type": "Feature",
 		"geometry": {
@@ -157,8 +157,7 @@ def _one_feature(from_id, from_lat, from_lng, to_id, to_lat, to_lng, frequency, 
 				]
 			},
 		"properties": {
-			"popupContent": repr(line_names),
-			"frequency": frequency
+			"frequency": frequency_array[12]
 			},
 		"id": 1
 		}
@@ -181,48 +180,80 @@ def geojson_frequency():
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				WITH desired_bounding_box_table AS (
-					SELECT box(point(%s, %s), point(%s, %s)) AS desired_bounding_box
+				with bus_per_hour_for_day as (
+					select
+						from_stoppoint,
+						to_stoppoint,
+						first_value(line) over (partition by from_stoppoint, to_stoppoint) as line,
+						sum(hour_0) over (partition by from_stoppoint, to_stoppoint) as hour_0,
+						sum(hour_1) over (partition by from_stoppoint, to_stoppoint) as hour_1,
+						sum(hour_2) over (partition by from_stoppoint, to_stoppoint) as hour_2,
+						sum(hour_3) over (partition by from_stoppoint, to_stoppoint) as hour_3,
+						sum(hour_4) over (partition by from_stoppoint, to_stoppoint) as hour_4,
+						sum(hour_5) over (partition by from_stoppoint, to_stoppoint) as hour_5,
+						sum(hour_6) over (partition by from_stoppoint, to_stoppoint) as hour_6,
+						sum(hour_7) over (partition by from_stoppoint, to_stoppoint) as hour_7,
+						sum(hour_8) over (partition by from_stoppoint, to_stoppoint) as hour_8,
+						sum(hour_9) over (partition by from_stoppoint, to_stoppoint) as hour_9,
+						sum(hour_10) over (partition by from_stoppoint, to_stoppoint) as hour_10,
+						sum(hour_11) over (partition by from_stoppoint, to_stoppoint) as hour_11,
+						sum(hour_12) over (partition by from_stoppoint, to_stoppoint) as hour_12,
+						sum(hour_13) over (partition by from_stoppoint, to_stoppoint) as hour_13,
+						sum(hour_14) over (partition by from_stoppoint, to_stoppoint) as hour_14,
+						sum(hour_15) over (partition by from_stoppoint, to_stoppoint) as hour_15,
+						sum(hour_16) over (partition by from_stoppoint, to_stoppoint) as hour_16,
+						sum(hour_17) over (partition by from_stoppoint, to_stoppoint) as hour_17,
+						sum(hour_18) over (partition by from_stoppoint, to_stoppoint) as hour_18,
+						sum(hour_19) over (partition by from_stoppoint, to_stoppoint) as hour_19,
+						sum(hour_20) over (partition by from_stoppoint, to_stoppoint) as hour_20,
+						sum(hour_21) over (partition by from_stoppoint, to_stoppoint) as hour_21,
+						sum(hour_22) over (partition by from_stoppoint, to_stoppoint) as hour_22,
+						sum(hour_23) over (partition by from_stoppoint, to_stoppoint) as hour_23
+					from mv_link_frequency
+					where line && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+					and days_mask & %(dow)s > 0
 				)
-				SELECT
-					bus_stop_pair_frequencies.from_stoppoint,
-					n_from.latitude,
-					n_from.longitude,
-					bus_stop_pair_frequencies.to_stoppoint,
-					n_to.latitude,
-					n_to.longitude,
-					bus_stop_pair_frequencies.frequency,
-					bus_stop_pair_frequencies.line_names
+				select
+					from_stoppoint,
+					to_stoppoint,
+					(line[0]::point)[0],
+					(line[0]::point)[1],
+					(line[1]::point)[0],
+					(line[1]::point)[1],
+					ARRAY[
+						hour_0,
+						hour_1,
+						hour_2,
+						hour_3,
+						hour_4,
+						hour_5,
+						hour_6,
+						hour_7,
+						hour_8,
+						hour_9,
+						hour_10,
+						hour_11,
+						hour_12,
+						hour_13,
+						hour_14,
+						hour_15,
+						hour_16,
+						hour_17,
+						hour_18,
+						hour_19,
+						hour_20,
+						hour_21,
+						hour_22,
+						hour_23]
 
-				FROM (
-					SELECT
-						timing.from_stoppoint,
-						timing.to_stoppoint,
-						sum(case when days_mask & %s != 0 then """ + hour_column + """ else 0 end) AS frequency,
-						array_agg(distinct line.line_name) AS line_names
+				from bus_per_hour_for_day;
 
-					FROM jptiminglink timing
-					JOIN journeypattern_service_section section USING (jpsection_id)
-					JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-					JOIN journeypattern_bounding_box jp_bbox USING (journeypattern_id)
-					LEFT JOIN line line ON vjph.line_id = line.line_id
-					WHERE jp_bbox.bounding_box && (select desired_bounding_box from desired_bounding_box_table)
-					GROUP BY 1, 2
-				) AS bus_stop_pair_frequencies
-				JOIN naptan n_from ON n_from.atcocode_id = bus_stop_pair_frequencies.from_stoppoint
-				JOIN naptan n_to ON n_to.atcocode_id = bus_stop_pair_frequencies.to_stoppoint
-
-				-- if this was an "and" relation, it might speed things up by filtering out a large
-				-- number of naptan points before joining... but currently it appears to make no
-				-- difference to the query plan, so we can stick with an "or" here:
-				WHERE point(n_from.latitude, n_from.longitude) <@ (select desired_bounding_box from desired_bounding_box_table)
-				OR point(n_to.latitude, n_to.longitude) <@ (select desired_bounding_box from desired_bounding_box_table)
-				""", (
-					request.args.get('minlat'),
-					request.args.get('minlng'),
-					request.args.get('maxlat'),
-					request.args.get('maxlng'),
-					DAY_OF_WEEK_CODE[request.args.get('dow', '')]))
+				""", dict(
+					minlat=request.args.get('minlat'),
+					minlng=request.args.get('minlng'),
+					maxlat=request.args.get('maxlat'),
+					maxlng=request.args.get('maxlng'),
+					dow=DAY_OF_WEEK_CODE[request.args.get('dow', '')]))
 
 			return jsonify({
 				"type": "FeatureCollection",
