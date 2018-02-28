@@ -275,11 +275,11 @@ window.addEventListener("load", function () {
 		if (time_saved_cost_per_year < 0) {
 			return "#ddffee"
 		} else if (time_saved_cost_per_year < 50000) {
-			return "#bbffdd"
+			return "#99ffcc"
 		} else if (time_saved_cost_per_year < 100000) {
-			return "#77ffcc"
+			return "#55ffaa"
 		} else if (time_saved_cost_per_year < 150000) {
-			return "#00ff77"
+			return "#33ff66"
 		} else {
 			return "#00ff00"
 		}
