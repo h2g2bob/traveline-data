@@ -229,10 +229,10 @@ window.addEventListener("load", function () {
 
 		var actual_speed_kmps = journey_length / journey_time;
 
-		var travel_100m_takes = 0.1 / actual_speed_kmps;
-		var ideal_travel_100m_takes = 0.1 / ideal_speed_kmps;
+		var travel_200m_takes = 0.2 / actual_speed_kmps;
+		var ideal_travel_200m_takes = 0.2 / ideal_speed_kmps;
 
-		var seconds_saved_per_passenger = travel_100m_takes - ideal_travel_100m_takes;
+		var seconds_saved_per_passenger = travel_200m_takes - ideal_travel_200m_takes;
 
 		var number_of_buses = 0;
 		for (var i = 0; i < frequencies.length; ++i) {
@@ -268,14 +268,17 @@ window.addEventListener("load", function () {
 
 		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, properties.frequencies)
 		var time_saved_hours = time_saved / 3600;
+		var value_of_time = 10; /* average wage is 10 gbp/hour */
+		var time_saved_cost = value_of_time * time_saved_hours;
+		var time_saved_cost_per_year = time_saved_cost * 365;
 
-		if (time_saved_hours < 0) {
+		if (time_saved_cost_per_year < 0) {
 			return "#ddffee"
-		} else if (time_saved_hours < 8) {
+		} else if (time_saved_cost_per_year < 50000) {
 			return "#bbffdd"
-		} else if (time_saved_hours < 16) {
+		} else if (time_saved_cost_per_year < 100000) {
 			return "#77ffcc"
-		} else if (time_saved_hours < 24) {
+		} else if (time_saved_cost_per_year < 150000) {
 			return "#00ff77"
 		} else {
 			return "#00ff00"
