@@ -158,14 +158,38 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	function color_congestion(properties) {
-		if (!properties || !properties.frequencies || !properties.length) {
+	var deg2rad = function (deg) {
+		/* https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula */
+		return deg * (Math.PI/180)
+	}
+	var distance_in_km = function (lat1, lon1, lat2, lon2) {
+		/* https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula */
+		var R = 6371; // Radius of the earth in km
+		var dLat = deg2rad(lat2-lat1);  // deg2rad below
+		var dLon = deg2rad(lon2-lon1);
+		var a =
+			Math.sin(dLat/2) * Math.sin(dLat/2) +
+			Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+			Math.sin(dLon/2) * Math.sin(dLon/2);
+		var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		var d = R * c; // Distance in km
+		return d;
+	}
+
+	function color_congestion(properties, geometry) {
+		if (!properties || !properties.frequencies || !geometry || !geometry.coordinates) {
 			return undefined;
 		}
 		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
+
+		var journey_length = distance_in_km(
+			geometry.coordinates[0][1],
+			geometry.coordinates[0][0],
+			geometry.coordinates[1][1],
+			geometry.coordinates[1][0]);
 
 		var journey_time = properties.max_runtime;
 		if (journey_time === undefined) {
@@ -175,18 +199,20 @@ window.addEventListener("load", function () {
 			return "#ffffff";
 		}
 
-		/* speed in: micro arc-degrees per sec */
-		var speed = 1000000 * properties.length / journey_time;
+		/* speed in: km per hour */
+		var speed = journey_time / (journey_time * 3600);
 
-		if (speed >= 100) {
+		if (speed >= 30) {
 			return "#ffffff"
-		} else if (speed >= 80) {
-			return "#dddddd"
-		} else if (speed >= 60) {
-			return "#aaaaaa"
-		} else if (speed >= 40) {
-			return "#777777"
+		} else if (speed >= 25) {
+			return "#eeeeee"
 		} else if (speed >= 20) {
+			return "#dddddd"
+		} else if (speed >= 15) {
+			return "#aaaaaa"
+		} else if (speed >= 10) {
+			return "#777777"
+		} else if (speed >= 5) {
 			return "#444444"
 		} else {
 			return "#000000"
@@ -211,7 +237,7 @@ window.addEventListener("load", function () {
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, {
 				style: function (feature) {
-					var color = color_congestion(feature.properties);
+					var color = color_congestion(feature.properties, feature.geometry);
 					return {
 						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 						"color": color
@@ -221,7 +247,7 @@ window.addEventListener("load", function () {
 					if (feature.properties.length > 0.2) {
 						return false;  /* hide obviously flase long paths */
 					}
-					var color = color_congestion(feature.properties);
+					var color = color_congestion(feature.properties, feature.geometry);
 					return color !== undefined;
 				}
 			});
