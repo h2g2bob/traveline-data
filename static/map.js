@@ -158,10 +158,75 @@ window.addEventListener("load", function () {
 		});
 	};
 
+	function color_congestion(properties) {
+		if (!properties || !properties.min_runtime || !properties.frequencies || !properties.length) {
+			return undefined;
+		}
+		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
+			/* no buses all day! */
+			return undefined;
+		}
+		// var speed = properties.min_runtime / properties.length;
+		if (properties.min_runtime > 300) {
+			return "#000000"
+		} else if (properties.min_runtime >= 240) {
+			return "#222222"
+		} else if (properties.min_runtime >= 180) {
+			return "#444444"
+		} else if (properties.min_runtime >= 120) {
+			return "#777777"
+		} else if (properties.min_runtime >= 60) {
+			return "#999999"
+		} else if (properties.min_runtime >= 30) {
+			return "#cccccc"
+		} else {
+			return "#ffffff"
+		}
+	}
+
+	var on_change_congestion = function() {
+		var bound = mymap.getBounds();
+		var DAY = "M";
+
+		$.ajax({
+			"method": "GET",
+			"url": "/geojson/",
+			"datatype": "json",
+			"data": {
+				"minlat": bound.getSouth(),
+				"maxlat": bound.getNorth(),
+				"minlng": bound.getWest(),
+				"maxlng": bound.getEast(),
+				"dow": DAY
+			}
+		}).done(function (data) {
+			var geo_layer = L.geoJSON(data, {
+				style: function (feature) {
+					var color = color_congestion(feature.properties);
+					return {
+						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+						"color": color
+					};
+				},
+				filter: function (feature, layer) {
+					if (feature.properties.length > 0.2) {
+						return false;  /* hide obviously flase long paths */
+					}
+					var color = color_congestion(feature.properties);
+					return color !== undefined;
+				}
+			});
+			geo_layers.clearLayers();
+			geo_layers.addLayer(geo_layer);
+		});
+	};
+
 	var on_change = function() {
 		/* refetch and redraw */
 		var active_tab = controls_ui.accordion("option", "active");
-		if (active_tab == 1) {
+		if (active_tab == 2) {
+			on_change_congestion();
+		} else if (active_tab == 1) {
 			on_change_lastbus();
 		} else {
 			on_change_frequencies();
