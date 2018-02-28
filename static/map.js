@@ -272,7 +272,7 @@ window.addEventListener("load", function () {
 		var time_saved_cost = value_of_time * time_saved_hours;
 		var time_saved_cost_per_year = time_saved_cost * 365;
 
-		if (time_saved_cost_per_year < 0) {
+		if (time_saved_cost_per_year < 10000) {
 			return "#ddffee"
 		} else if (time_saved_cost_per_year < 50000) {
 			return "#99ffcc"
