@@ -49,19 +49,15 @@ def boundingbox_from_request():
 
 @app.route('/')
 def map_page():
-	return send_from_directory("static", "map_page.html")
+	return send_from_directory("static", "map.html")
 
-@app.route('/datasources/')
-def datasources():
-	return send_from_directory("static", "data_sources.html")
-
-@app.route('/map_page.js')
+@app.route('/map.js')
 def map_page_js():
-	return send_from_directory("static", "map_page.js")
+	return send_from_directory("static", "map.js")
 
-@app.route('/map_page.css')
+@app.route('/map.css')
 def map_page_css():
-	return send_from_directory("static", "map_page.css")
+	return send_from_directory("static", "map.css")
 
 @app.route('/postcode/location/<code>/')
 def postcode_location(code):
