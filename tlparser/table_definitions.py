@@ -296,7 +296,7 @@ def create_mv_link_frequency2(cur):
 			    jptiminglink.jpsection_id
 			   FROM jptiminglink
 			     JOIN source USING (source_id)
-			  WHERE source.source ~~ '""" + shard + """.zip/%'::text
+			  WHERE source.source ~~ '""" + shard.upper() + """.zip/%'::text
 			), stops_and_frequency AS (
 			 SELECT timing.from_stoppoint,
 			    timing.to_stoppoint,
