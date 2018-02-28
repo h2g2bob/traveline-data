@@ -221,6 +221,86 @@ window.addEventListener("load", function () {
 		});
 	};
 
+	var passenger_time_saved_per_day = function (journey_length, journey_time, frequencies) {
+		var mph_per_kmph = 0.6213712;
+
+		var ideal_speed_mph = 10;
+		var ideal_speed_kmps = (ideal_speed_mph / mph_per_kmph) / 3600;
+
+		var actual_speed_kmps = journey_length / journey_time;
+
+		var travel_100m_takes = 0.1 / actual_speed_kmps;
+		var ideal_travel_100m_takes = 0.1 / ideal_speed_kmps;
+
+		var seconds_saved_per_passenger = travel_100m_takes - ideal_travel_100m_takes;
+
+		var number_of_buses = 0;
+		for (var i = 0; i < frequencies.length; ++i) {
+			number_of_buses += frequencies[i];
+		}
+		var passengers_per_bus = 10;
+		var number_of_passengers = passengers_per_bus * number_of_buses;
+
+		return seconds_saved_per_passenger * number_of_passengers;
+	};
+
+	function color_opportunities(properties, geometry) {
+		if (!properties || !properties.frequencies || !geometry || !geometry.coordinates) {
+			return undefined;
+		}
+		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
+			/* no buses all day! */
+			return undefined;
+		}
+
+		var journey_length = distance_in_km(
+			geometry.coordinates[0][1],
+			geometry.coordinates[0][0],
+			geometry.coordinates[1][1],
+			geometry.coordinates[1][0]);
+
+		var journey_time = properties.max_runtime;
+		if (journey_time === undefined) {
+			return undefined;
+		} else if (journey_time < 1) {
+			return undefined;
+		}
+
+		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, properties.frequencies)
+		var time_saved_hours = time_saved / 3600;
+
+		if (time_saved_hours < 0) {
+			return "#ddffee"
+		} else if (time_saved_hours < 8) {
+			return "#bbffdd"
+		} else if (time_saved_hours < 16) {
+			return "#77ffcc"
+		} else if (time_saved_hours < 24) {
+			return "#00ff77"
+		} else {
+			return "#00ff00"
+		}
+	}
+
+	var on_change_opportunities = function() {
+		fetch_and_refresh_display({
+			style: function (feature) {
+				var color = color_opportunities(feature.properties, feature.geometry);
+				return {
+					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+					"color": color
+				};
+			},
+			filter: function (feature, layer) {
+				if (feature.properties.length > 0.2) {
+					return false;  /* hide obviously flase long paths */
+				}
+				var color = color_opportunities(feature.properties, feature.geometry);
+				return color !== undefined;
+			}
+		});
+	};
+
 	var on_change = function() {
 		if (mymap.getZoom() <= 10) {
 			/* most web browsers will cry if you do this */
@@ -229,12 +309,16 @@ window.addEventListener("load", function () {
 
 		/* refetch and redraw */
 		var active_tab = controls_ui.accordion("option", "active");
-		if (active_tab == 2) {
-			on_change_congestion();
+		if (active_tab == 0) {
+			on_change_frequencies();
 		} else if (active_tab == 1) {
 			on_change_lastbus();
+		} else if (active_tab == 2) {
+			on_change_congestion();
+		} else if (active_tab == 3) {
+			on_change_opportunities();
 		} else {
-			on_change_frequencies();
+			/* no controls section selected? */
 		}
 	};
 
