@@ -287,13 +287,25 @@ def create_mv_link_frequency2(cur):
 	logging.info("Defining mv_link_frequency2...")
 	SHARDS = ["ea", "em", "l", "ncsd", "nw", "s", "se", "sw", "w", "wm", "y"]
 
+	cur.execute("""
+	CREATE FUNCTION runtime_to_seconds(TEXT) RETURNS integer
+	AS $$
+		SELECT (coalesce(x.match[1]::int, 0)*60) + coalesce(x.match[2]::int, 0)
+		FROM (
+			SELECT regexp_matches($1, '^PT(?:([0-9]+)M)?(?:([0-9]+)S)?$') as match
+		) AS x;
+	$$ LANGUAGE SQL
+	IMMUTABLE
+	RETURNS NULL ON NULL INPUT;
+	""")
 	for shard in SHARDS:
 		cur.execute("""
 		CREATE MATERIALIZED VIEW mv_link_frequency2_""" + shard + """ AS
 		 WITH jptiminglink_subset AS (
 			 SELECT jptiminglink.from_stoppoint,
 			    jptiminglink.to_stoppoint,
-			    jptiminglink.jpsection_id
+			    jptiminglink.jpsection_id,
+			    runtime_to_seconds(jptiminglink.runtime) as runtime_sec
 			   FROM jptiminglink
 			     JOIN source USING (source_id)
 			  WHERE source.source ~~ '""" + shard.upper() + """.zip/%'::text
@@ -325,7 +337,8 @@ def create_mv_link_frequency2(cur):
 			    sum(vjph.hour_21) AS hour_21,
 			    sum(vjph.hour_22) AS hour_22,
 			    sum(vjph.hour_23) AS hour_23,
-			    sum(vjph.hour_0 + vjph.hour_1 + vjph.hour_2 + vjph.hour_3 + vjph.hour_4 + vjph.hour_5 + vjph.hour_6 + vjph.hour_7 + vjph.hour_8 + vjph.hour_9 + vjph.hour_10 + vjph.hour_11 + vjph.hour_12 + vjph.hour_13 + vjph.hour_14 + vjph.hour_15 + vjph.hour_16 + vjph.hour_17 + vjph.hour_18 + vjph.hour_19 + vjph.hour_20 + vjph.hour_21 + vjph.hour_22 + vjph.hour_23) * (((vjph.days_mask >> 0) & 1) + ((vjph.days_mask >> 1) & 1) + ((vjph.days_mask >> 2) & 1) + ((vjph.days_mask >> 3) & 1) + ((vjph.days_mask >> 4) & 1) + ((vjph.days_mask >> 5) & 1) + ((vjph.days_mask >> 6) & 1) + ((vjph.days_mask >> 7) & 1))::numeric AS bus_per_week
+			    sum(vjph.hour_0 + vjph.hour_1 + vjph.hour_2 + vjph.hour_3 + vjph.hour_4 + vjph.hour_5 + vjph.hour_6 + vjph.hour_7 + vjph.hour_8 + vjph.hour_9 + vjph.hour_10 + vjph.hour_11 + vjph.hour_12 + vjph.hour_13 + vjph.hour_14 + vjph.hour_15 + vjph.hour_16 + vjph.hour_17 + vjph.hour_18 + vjph.hour_19 + vjph.hour_20 + vjph.hour_21 + vjph.hour_22 + vjph.hour_23) * (((vjph.days_mask >> 0) & 1) + ((vjph.days_mask >> 1) & 1) + ((vjph.days_mask >> 2) & 1) + ((vjph.days_mask >> 3) & 1) + ((vjph.days_mask >> 4) & 1) + ((vjph.days_mask >> 5) & 1) + ((vjph.days_mask >> 6) & 1) + ((vjph.days_mask >> 7) & 1))::numeric AS bus_per_week,
+			    array_agg(distinct timing.runtime_sec) as runtimes
 			   FROM jptiminglink_subset timing
 			     JOIN journeypattern_service_section section USING (jpsection_id)
 			     JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
@@ -366,7 +379,8 @@ def create_mv_link_frequency2(cur):
 		    stops_and_frequency.hour_21,
 		    stops_and_frequency.hour_22,
 		    stops_and_frequency.hour_23,
-		    stops_and_frequency.bus_per_week
+		    stops_and_frequency.bus_per_week,
+		    stops_and_frequency.runtimes
 		   FROM stops_and_frequency
 		     JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
 		     JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
@@ -413,7 +427,8 @@ def create_mv_link_frequency2(cur):
 		    mv_link_frequency2_%(shard)s.hour_21,
 		    mv_link_frequency2_%(shard)s.hour_22,
 		    mv_link_frequency2_%(shard)s.hour_23,
-		    mv_link_frequency2_%(shard)s.bus_per_week
+		    mv_link_frequency2_%(shard)s.bus_per_week,
+		    mv_link_frequency2_%(shard)s.runtimes
 		   FROM mv_link_frequency2_%(shard)s
 		""" % dict(shard=shard)
 		for shard in SHARDS))
