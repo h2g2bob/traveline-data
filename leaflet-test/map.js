@@ -81,7 +81,10 @@ window.addEventListener("load", function () {
 				style: function (feature) {
 					return feature.properties &&
 						feature.properties.frequencies &&
-						{color: color_freq(feature.properties.frequencies[HOUR])};
+						{
+							"color": color_freq(feature.properties.frequencies[HOUR]),
+							"weight": feature.properties.length > 0.2 ? 1.0 : 3.0
+						};
 				},
 				filter: function (feature, layer) {
 					return feature.properties &&
@@ -134,7 +137,10 @@ window.addEventListener("load", function () {
 			var geo_layer = L.geoJSON(data, {
 				style: function (feature) {
 					var color = color_last_bus(feature.properties);
-					return {"color": color};
+					return {
+						"weight": feature.properties.length > 0.2 ? 1.0 : 3.0,
+						"color": color
+					};
 				},
 				filter: function (feature, layer) {
 					var color = color_last_bus(feature.properties);

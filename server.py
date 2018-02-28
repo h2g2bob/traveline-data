@@ -146,7 +146,7 @@ def postcode_to_ll(postcode):
 			else:
 				return jsonify({"result": False})
 
-def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, frequency_array):
+def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, frequency_array):
 	frequency_array = [float(freq) for freq in frequency_array]  # Damn you Decimal module
 	return {
 		"type": "Feature",
@@ -158,6 +158,7 @@ def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, frequency_a
 				]
 			},
 		"properties": {
+			"length": length,
 			"frequencies": frequency_array
 			},
 		"id": 1
@@ -221,6 +222,7 @@ def geojson_frequency():
 					(line_segment[0]::point)[1],
 					(line_segment[1]::point)[0],
 					(line_segment[1]::point)[1],
+					length(line_segment),
 					ARRAY[
 						hour_0,
 						hour_1,
