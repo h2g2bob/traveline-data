@@ -87,6 +87,9 @@ window.addEventListener("load", function () {
 						};
 				},
 				filter: function (feature, layer) {
+					if (feature.properties.length > 0.4) {
+						return false;  /* hide obviously flase long paths */
+					}
 					return feature.properties &&
 						feature.properties.frequencies &&
 						(feature.properties.frequencies[HOUR] >= 1)
@@ -143,6 +146,9 @@ window.addEventListener("load", function () {
 					};
 				},
 				filter: function (feature, layer) {
+					if (feature.properties.length > 0.4) {
+						return false;  /* hide obviously flase long paths */
+					}
 					var color = color_last_bus(feature.properties);
 					return color !== undefined;
 				}
