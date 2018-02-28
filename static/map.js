@@ -254,6 +254,11 @@ window.addEventListener("load", function () {
 	};
 
 	var on_change = function() {
+		if (mymap.getZoom() <= 10) {
+			/* most web browsers will cry if you do this */
+			return;
+		}
+
 		/* refetch and redraw */
 		var active_tab = controls_ui.accordion("option", "active");
 		if (active_tab == 2) {
