@@ -272,13 +272,13 @@ window.addEventListener("load", function () {
 		var time_saved_cost = value_of_time * time_saved_hours;
 		var time_saved_cost_per_year = time_saved_cost * 365;
 
-		if (time_saved_cost_per_year < 50000) {
+		if (time_saved_cost_per_year < 0) {
 			return "#ddffee"
-		} else if (time_saved_cost_per_year < 100000) {
+		} else if (time_saved_cost_per_year < 50000) {
 			return "#bbffdd"
-		} else if (time_saved_cost_per_year < 150000) {
+		} else if (time_saved_cost_per_year < 100000) {
 			return "#77ffcc"
-		} else if (time_saved_cost_per_year < 200000) {
+		} else if (time_saved_cost_per_year < 150000) {
 			return "#00ff77"
 		} else {
 			return "#00ff00"
