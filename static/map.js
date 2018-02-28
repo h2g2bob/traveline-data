@@ -206,11 +206,11 @@ window.addEventListener("load", function () {
 		if (speed > 12) {
 			return "#cccccc"
 		} else if (speed > 8) {
-			return "#aaaaaa"
+			return "#999999"
 		} else if (speed > 4) {
-			return "#777777"
+			return "#666666"
 		} else if (speed > 2) {
-			return "#444444"
+			return "#333333"
 		} else {
 			return "#000000"
 		}
