@@ -106,13 +106,13 @@ window.addEventListener("load", function () {
 		}
 		if (properties.frequencies[23] > 0) {
 			return "#0000ff"
-		} else if (properties.frequencies[21] > 0 || properties.frequencies[22] > 0) {
+		} else if (properties.frequencies[22] > 0) {
 			return "#0077ff"
-		} else if (properties.frequencies[19] > 0 || properties.frequencies[20] > 0) {
+		} else if (properties.frequencies[21] > 0) {
 			return "#77ccff"
-		} else if (properties.frequencies[17] > 0 || properties.frequencies[18] > 0) {
+		} else if (properties.frequencies[20] > 0) {
 			return "#bbddff"
-		} else if (properties.frequencies[15] > 0 || properties.frequencies[16] > 0) {
+		} else if (properties.frequencies[19] > 0) {
 			return "#ddeeff"
 		} else {
 			/* not worth showing */
