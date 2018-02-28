@@ -199,20 +199,19 @@ window.addEventListener("load", function () {
 			return "#ffffff";
 		}
 
-		/* speed in: km per hour */
-		var speed = journey_time / (journey_time * 3600);
+		/* speed in: mph */
+		var mph_per_kmph = 0.6213712;
+		var speed = mph_per_kmph * journey_time / (journey_time * 3600);
 
-		if (speed >= 30) {
+		if (speed > 25) {
 			return "#ffffff"
-		} else if (speed >= 25) {
-			return "#eeeeee"
-		} else if (speed >= 20) {
-			return "#dddddd"
-		} else if (speed >= 15) {
+		} else if (speed > 20) {
+			return "#cccccc"
+		} else if (speed > 15) {
 			return "#aaaaaa"
-		} else if (speed >= 10) {
+		} else if (speed > 10) {
 			return "#777777"
-		} else if (speed >= 5) {
+		} else if (speed > 5) {
 			return "#444444"
 		} else {
 			return "#000000"
