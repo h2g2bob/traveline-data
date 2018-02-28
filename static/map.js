@@ -159,28 +159,37 @@ window.addEventListener("load", function () {
 	};
 
 	function color_congestion(properties) {
-		if (!properties || !properties.min_runtime || !properties.frequencies || !properties.length) {
+		if (!properties || !properties.frequencies || !properties.length) {
 			return undefined;
 		}
 		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
-		// var speed = properties.min_runtime / properties.length;
-		if (properties.min_runtime > 300) {
-			return "#000000"
-		} else if (properties.min_runtime >= 240) {
-			return "#222222"
-		} else if (properties.min_runtime >= 180) {
-			return "#444444"
-		} else if (properties.min_runtime >= 120) {
-			return "#777777"
-		} else if (properties.min_runtime >= 60) {
-			return "#999999"
-		} else if (properties.min_runtime >= 30) {
-			return "#cccccc"
-		} else {
+
+		var journey_time = properties.max_runtime;
+		if (journey_time === undefined) {
+			return undefined;
+		} else if (journey_time < 1) {
+			/* infinite speed, but still show it so that route can be followed */
+			return "#ffffff";
+		}
+
+		/* speed in: micro arc-degrees per sec */
+		var speed = 1000000 * properties.length / journey_time;
+
+		if (speed >= 100) {
 			return "#ffffff"
+		} else if (speed >= 80) {
+			return "#dddddd"
+		} else if (speed >= 60) {
+			return "#aaaaaa"
+		} else if (speed >= 40) {
+			return "#777777"
+		} else if (speed >= 20) {
+			return "#444444"
+		} else {
+			return "#000000"
 		}
 	}
 
