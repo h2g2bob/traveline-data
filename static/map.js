@@ -83,11 +83,11 @@ window.addEventListener("load", function () {
 						feature.properties.frequencies &&
 						{
 							"color": color_freq(feature.properties.frequencies[HOUR]),
-							"weight": feature.properties.length > 0.2 ? 1.0 : 3.0
+							"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
 						};
 				},
 				filter: function (feature, layer) {
-					if (feature.properties.length > 0.4) {
+					if (feature.properties.length > 0.2) {
 						return false;  /* hide obviously flase long paths */
 					}
 					return feature.properties &&
@@ -141,12 +141,12 @@ window.addEventListener("load", function () {
 				style: function (feature) {
 					var color = color_last_bus(feature.properties);
 					return {
-						"weight": feature.properties.length > 0.2 ? 1.0 : 3.0,
+						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 						"color": color
 					};
 				},
 				filter: function (feature, layer) {
-					if (feature.properties.length > 0.4) {
+					if (feature.properties.length > 0.2) {
 						return false;  /* hide obviously flase long paths */
 					}
 					var color = color_last_bus(feature.properties);
