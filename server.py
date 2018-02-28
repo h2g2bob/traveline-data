@@ -75,7 +75,7 @@ def postcode_complete():
 			data = [postcode for [postcode] in cur.fetchall()]
 			return jsonify({"results": data})
 
-def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, frequency_array):
+def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, min_runtime, max_runtime, frequency_array):
 	frequency_array = [float(freq) for freq in frequency_array]  # Damn you Decimal module
 	return {
 		"type": "Feature",
@@ -88,7 +88,9 @@ def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, fre
 			},
 		"properties": {
 			"length": length,
-			"frequencies": frequency_array
+			"frequencies": frequency_array,
+			"min_runtime": min_runtime,
+			"max_runtime": max_runtime,
 			},
 		"id": 1
 		}
@@ -116,6 +118,8 @@ def geojson_frequency():
 						from_stoppoint,
 						to_stoppoint,
 						first_value(line_segment) over (partition by from_stoppoint, to_stoppoint) as line_segment,
+						min((select min(r) from unnest(runtimes) AS r)) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
+						max((select max(r) from unnest(runtimes) AS r)) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
 						sum(hour_0) over (partition by from_stoppoint, to_stoppoint) as hour_0,
 						sum(hour_1) over (partition by from_stoppoint, to_stoppoint) as hour_1,
 						sum(hour_2) over (partition by from_stoppoint, to_stoppoint) as hour_2,
@@ -152,6 +156,8 @@ def geojson_frequency():
 					(line_segment[1]::point)[0],
 					(line_segment[1]::point)[1],
 					length(line_segment),
+					min_runtime,
+					max_runtime,
 					ARRAY[
 						hour_0,
 						hour_1,
