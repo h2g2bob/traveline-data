@@ -46,6 +46,28 @@ window.addEventListener("load", function () {
 
 	/* data */
 
+	var fetch_and_refresh_display = function(json_display_args) {
+		var bound = mymap.getBounds();
+		var DAY = "M";
+
+		$.ajax({
+			"method": "GET",
+			"url": "/geojson/",
+			"datatype": "json",
+			"data": {
+				"minlat": bound.getSouth(),
+				"maxlat": bound.getNorth(),
+				"minlng": bound.getWest(),
+				"maxlng": bound.getEast(),
+				"dow": DAY
+			}
+		}).done(function (data) {
+			var geo_layer = L.geoJSON(data, json_display_args);
+			geo_layers.clearLayers();
+			geo_layers.addLayer(geo_layer);
+		});
+	};
+
 	var color_freq = function (freq) {
 		if (freq >= 12) {
 			return "#ff0000"
@@ -61,42 +83,24 @@ window.addEventListener("load", function () {
 	};
 
 	var on_change_frequencies = function() {
-		var bound = mymap.getBounds();
 		var HOUR = 12;
-		var DAY = "M";
-
-		$.ajax({
-			"method": "GET",
-			"url": "/geojson/",
-			"datatype": "json",
-			"data": {
-				"minlat": bound.getSouth(),
-				"maxlat": bound.getNorth(),
-				"minlng": bound.getWest(),
-				"maxlng": bound.getEast(),
-				"dow": DAY
-			}
-		}).done(function (data) {
-			var geo_layer = L.geoJSON(data, {
-				style: function (feature) {
-					return feature.properties &&
-						feature.properties.frequencies &&
-						{
-							"color": color_freq(feature.properties.frequencies[HOUR]),
-							"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
-						};
-				},
-				filter: function (feature, layer) {
-					if (feature.properties.length > 0.2) {
-						return false;  /* hide obviously flase long paths */
-					}
-					return feature.properties &&
-						feature.properties.frequencies &&
-						(feature.properties.frequencies[HOUR] >= 1)
+		fetch_and_refresh_display({
+			style: function (feature) {
+				return feature.properties &&
+					feature.properties.frequencies &&
+					{
+						"color": color_freq(feature.properties.frequencies[HOUR]),
+						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
+					};
+			},
+			filter: function (feature, layer) {
+				if (feature.properties.length > 0.2) {
+					return false;  /* hide obviously flase long paths */
 				}
-			});
-			geo_layers.clearLayers();
-			geo_layers.addLayer(geo_layer);
+				return feature.properties &&
+					feature.properties.frequencies &&
+					(feature.properties.frequencies[HOUR] >= 1)
+			}
 		});
 	};
 
@@ -122,39 +126,21 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_lastbus = function() {
-		var bound = mymap.getBounds();
-		var DAY = "M";
-
-		$.ajax({
-			"method": "GET",
-			"url": "/geojson/",
-			"datatype": "json",
-			"data": {
-				"minlat": bound.getSouth(),
-				"maxlat": bound.getNorth(),
-				"minlng": bound.getWest(),
-				"maxlng": bound.getEast(),
-				"dow": DAY
-			}
-		}).done(function (data) {
-			var geo_layer = L.geoJSON(data, {
-				style: function (feature) {
-					var color = color_last_bus(feature.properties);
-					return {
-						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-						"color": color
-					};
-				},
-				filter: function (feature, layer) {
-					if (feature.properties.length > 0.2) {
-						return false;  /* hide obviously flase long paths */
-					}
-					var color = color_last_bus(feature.properties);
-					return color !== undefined;
+		fetch_and_refresh_display({
+			style: function (feature) {
+				var color = color_last_bus(feature.properties);
+				return {
+					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+					"color": color
+				};
+			},
+			filter: function (feature, layer) {
+				if (feature.properties.length > 0.2) {
+					return false;  /* hide obviously flase long paths */
 				}
-			});
-			geo_layers.clearLayers();
-			geo_layers.addLayer(geo_layer);
+				var color = color_last_bus(feature.properties);
+				return color !== undefined;
+			}
 		});
 	};
 
@@ -217,39 +203,21 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_congestion = function() {
-		var bound = mymap.getBounds();
-		var DAY = "M";
-
-		$.ajax({
-			"method": "GET",
-			"url": "/geojson/",
-			"datatype": "json",
-			"data": {
-				"minlat": bound.getSouth(),
-				"maxlat": bound.getNorth(),
-				"minlng": bound.getWest(),
-				"maxlng": bound.getEast(),
-				"dow": DAY
-			}
-		}).done(function (data) {
-			var geo_layer = L.geoJSON(data, {
-				style: function (feature) {
-					var color = color_congestion(feature.properties, feature.geometry);
-					return {
-						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-						"color": color
-					};
-				},
-				filter: function (feature, layer) {
-					if (feature.properties.length > 0.2) {
-						return false;  /* hide obviously flase long paths */
-					}
-					var color = color_congestion(feature.properties, feature.geometry);
-					return color !== undefined;
+		fetch_and_refresh_display({
+			style: function (feature) {
+				var color = color_congestion(feature.properties, feature.geometry);
+				return {
+					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+					"color": color
+				};
+			},
+			filter: function (feature, layer) {
+				if (feature.properties.length > 0.2) {
+					return false;  /* hide obviously flase long paths */
 				}
-			});
-			geo_layers.clearLayers();
-			geo_layers.addLayer(geo_layer);
+				var color = color_congestion(feature.properties, feature.geometry);
+				return color !== undefined;
+			}
 		});
 	};
 
