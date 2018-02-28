@@ -196,7 +196,7 @@ window.addEventListener("load", function () {
 			return undefined;
 		} else if (journey_time < 1) {
 			/* infinite speed, but still show it so that route can be followed */
-			return "#ffffff";
+			return "#cccccc";
 		}
 
 		/* speed in: mph */
@@ -204,7 +204,7 @@ window.addEventListener("load", function () {
 		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
 
 		if (speed > 20) {
-			return "#ffffff"
+			return "#cccccc"
 		} else if (speed > 15) {
 			return "#aaaaaa"
 		} else if (speed > 10) {
