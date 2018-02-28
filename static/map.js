@@ -201,12 +201,10 @@ window.addEventListener("load", function () {
 
 		/* speed in: mph */
 		var mph_per_kmph = 0.6213712;
-		var speed = mph_per_kmph * journey_time / (journey_time * 3600);
+		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
 
-		if (speed > 25) {
+		if (speed > 20) {
 			return "#ffffff"
-		} else if (speed > 20) {
-			return "#cccccc"
 		} else if (speed > 15) {
 			return "#aaaaaa"
 		} else if (speed > 10) {
