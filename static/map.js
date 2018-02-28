@@ -203,13 +203,13 @@ window.addEventListener("load", function () {
 		var mph_per_kmph = 0.6213712;
 		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
 
-		if (speed > 20) {
+		if (speed > 12) {
 			return "#cccccc"
-		} else if (speed > 15) {
+		} else if (speed > 8) {
 			return "#aaaaaa"
-		} else if (speed > 10) {
+		} else if (speed > 4) {
 			return "#777777"
-		} else if (speed > 5) {
+		} else if (speed > 2) {
 			return "#444444"
 		} else {
 			return "#000000"
