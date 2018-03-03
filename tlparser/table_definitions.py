@@ -281,11 +281,19 @@ def create_materialized_views(conn):
 			USING btree (journeypattern_id);
 		""")
 
-		create_mv_link_frequency2(cur)
+		create_mv_link_frequency3(cur)
 
-def create_mv_link_frequency2(cur):
-	logging.info("Defining mv_link_frequency2...")
+def create_mv_link_frequency3(cur):
+	logging.info("Defining mv_link_frequency3...")
 	SHARDS = ["ea", "em", "l", "ncsd", "nw", "s", "se", "sw", "w", "wm", "y"]
+
+	cur.execute("""
+	CREATE TABLE mask_to_weekday (mask INT UNIQUE, weekday CHAR UNIQUE);
+	""")
+	cur.execute("""
+	INSERT INTO mask_to_weekday (mask, weekday)
+	VALUES (1, 'M'), (2, 'T'), (4, 'W'), (8, 'H'), (16, 'F'), (32, 'S'), (64, 'N');
+	""")
 
 	cur.execute("""
 	CREATE FUNCTION runtime_to_seconds(TEXT) RETURNS integer
@@ -298,140 +306,175 @@ def create_mv_link_frequency2(cur):
 	IMMUTABLE
 	RETURNS NULL ON NULL INPUT;
 	""")
+
 	for shard in SHARDS:
 		cur.execute("""
-		CREATE MATERIALIZED VIEW mv_link_frequency2_""" + shard + """ AS
-		 WITH jptiminglink_subset AS (
-			 SELECT jptiminglink.from_stoppoint,
-			    jptiminglink.to_stoppoint,
-			    jptiminglink.jpsection_id,
-			    runtime_to_seconds(jptiminglink.runtime) as runtime_sec
-			   FROM jptiminglink
-			     JOIN source USING (source_id)
-			  WHERE source.source ~~ '""" + shard.upper() + """.zip/%'::text
-			), stops_and_frequency AS (
-			 SELECT timing.from_stoppoint,
-			    timing.to_stoppoint,
-			    vjph.days_mask,
-			    sum(vjph.hour_0) AS hour_0,
-			    sum(vjph.hour_1) AS hour_1,
-			    sum(vjph.hour_2) AS hour_2,
-			    sum(vjph.hour_3) AS hour_3,
-			    sum(vjph.hour_4) AS hour_4,
-			    sum(vjph.hour_5) AS hour_5,
-			    sum(vjph.hour_6) AS hour_6,
-			    sum(vjph.hour_7) AS hour_7,
-			    sum(vjph.hour_8) AS hour_8,
-			    sum(vjph.hour_9) AS hour_9,
-			    sum(vjph.hour_10) AS hour_10,
-			    sum(vjph.hour_11) AS hour_11,
-			    sum(vjph.hour_12) AS hour_12,
-			    sum(vjph.hour_13) AS hour_13,
-			    sum(vjph.hour_14) AS hour_14,
-			    sum(vjph.hour_15) AS hour_15,
-			    sum(vjph.hour_16) AS hour_16,
-			    sum(vjph.hour_17) AS hour_17,
-			    sum(vjph.hour_18) AS hour_18,
-			    sum(vjph.hour_19) AS hour_19,
-			    sum(vjph.hour_20) AS hour_20,
-			    sum(vjph.hour_21) AS hour_21,
-			    sum(vjph.hour_22) AS hour_22,
-			    sum(vjph.hour_23) AS hour_23,
-			    sum(vjph.hour_0 + vjph.hour_1 + vjph.hour_2 + vjph.hour_3 + vjph.hour_4 + vjph.hour_5 + vjph.hour_6 + vjph.hour_7 + vjph.hour_8 + vjph.hour_9 + vjph.hour_10 + vjph.hour_11 + vjph.hour_12 + vjph.hour_13 + vjph.hour_14 + vjph.hour_15 + vjph.hour_16 + vjph.hour_17 + vjph.hour_18 + vjph.hour_19 + vjph.hour_20 + vjph.hour_21 + vjph.hour_22 + vjph.hour_23) * (((vjph.days_mask >> 0) & 1) + ((vjph.days_mask >> 1) & 1) + ((vjph.days_mask >> 2) & 1) + ((vjph.days_mask >> 3) & 1) + ((vjph.days_mask >> 4) & 1) + ((vjph.days_mask >> 5) & 1) + ((vjph.days_mask >> 6) & 1) + ((vjph.days_mask >> 7) & 1))::numeric AS bus_per_week,
-			    array_agg(distinct timing.runtime_sec) as runtimes
-			   FROM jptiminglink_subset timing
-			     JOIN journeypattern_service_section section USING (jpsection_id)
-			     JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-			  GROUP BY timing.from_stoppoint, timing.to_stoppoint, vjph.days_mask
+		CREATE MATERIALIZED VIEW mv_link_frequency3_""" + shard + """ AS
+			WITH jptiminglink_subset AS (
+				SELECT
+					jptiminglink.from_stoppoint,
+					jptiminglink.to_stoppoint,
+					jptiminglink.jpsection_id,
+					runtime_to_seconds(jptiminglink.runtime) as runtime_sec
+				FROM jptiminglink
+				JOIN source USING (source_id)
+				WHERE source.source ~~ '""" + shard.upper() + """.zip/%'::text
+			),
+			stops_and_frequency_per_line AS (
+				SELECT
+					timing.from_stoppoint,
+					timing.to_stoppoint,
+					jp_service.service_id,
+					weekday.weekday,
+					ARRAY [
+						sum(vjph.hour_0),
+						sum(vjph.hour_1),
+						sum(vjph.hour_2),
+						sum(vjph.hour_3),
+						sum(vjph.hour_4),
+						sum(vjph.hour_5),
+						sum(vjph.hour_6),
+						sum(vjph.hour_7),
+						sum(vjph.hour_8),
+						sum(vjph.hour_9),
+						sum(vjph.hour_10),
+						sum(vjph.hour_11),
+						sum(vjph.hour_12),
+						sum(vjph.hour_13),
+						sum(vjph.hour_14),
+						sum(vjph.hour_15),
+						sum(vjph.hour_16),
+						sum(vjph.hour_17),
+						sum(vjph.hour_18),
+						sum(vjph.hour_19),
+						sum(vjph.hour_20),
+						sum(vjph.hour_21),
+						sum(vjph.hour_22),
+						sum(vjph.hour_23)
+					] AS hour_array,
+					min(distinct timing.runtime_sec) as min_runtime,
+					max(distinct timing.runtime_sec) as max_runtime
+				FROM jptiminglink_subset timing
+				JOIN journeypattern_service_section section USING (jpsection_id)
+				JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
+				LEFT JOIN journeypattern_service jp_service USING (journeypattern_id)
+				JOIN mask_to_weekday weekday ON weekday.mask & vjph.days_mask > 0
+				GROUP BY
+					timing.from_stoppoint,
+					timing.to_stoppoint,
+					jp_service.service_id,
+					weekday.weekday
+			),
+			stops_and_frequency AS (
+				
+				SELECT
+					from_stoppoint,
+					to_stoppoint,
+					weekday,
+
+					ARRAY [
+						sum(hour_array[1]),
+						sum(hour_array[2]),
+						sum(hour_array[3]),
+						sum(hour_array[4]),
+						sum(hour_array[5]),
+						sum(hour_array[6]),
+						sum(hour_array[7]),
+						sum(hour_array[8]),
+						sum(hour_array[9]),
+						sum(hour_array[10]),
+						sum(hour_array[11]),
+						sum(hour_array[12]),
+						sum(hour_array[13]),
+						sum(hour_array[14]),
+						sum(hour_array[15]),
+						sum(hour_array[16]),
+						sum(hour_array[17]),
+						sum(hour_array[18]),
+						sum(hour_array[19]),
+						sum(hour_array[20]),
+						sum(hour_array[21]),
+						sum(hour_array[22]),
+						sum(hour_array[23]),
+						sum(hour_array[24])
+					] hour_array_total,
+
+					ARRAY [
+						max(hour_array[1]),
+						max(hour_array[2]),
+						max(hour_array[3]),
+						max(hour_array[4]),
+						max(hour_array[5]),
+						max(hour_array[6]),
+						max(hour_array[7]),
+						max(hour_array[8]),
+						max(hour_array[9]),
+						max(hour_array[10]),
+						max(hour_array[11]),
+						max(hour_array[12]),
+						max(hour_array[13]),
+						max(hour_array[14]),
+						max(hour_array[15]),
+						max(hour_array[16]),
+						max(hour_array[17]),
+						max(hour_array[18]),
+						max(hour_array[19]),
+						max(hour_array[20]),
+						max(hour_array[21]),
+						max(hour_array[22]),
+						max(hour_array[23]),
+						max(hour_array[24])
+					] hour_array_best_service,
+
+					array_agg(DISTINCT service_id) AS service_ids,
+					min(min_runtime) AS min_runtime,
+					max(max_runtime) AS max_runtime
+
+				FROM stops_and_frequency_per_line
+				GROUP BY
+					from_stoppoint,
+					to_stoppoint,
+					weekday
 			)
-		 SELECT
-		    -- a line segment allows you to draw directly from a
-		    -- query on this table, which is a massive speed improvement
-		    lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
+			SELECT
+				-- a line segment allows you to draw directly from a
+				-- query on this table, which is a massive speed improvement
+				lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
 
-		    -- ... but you can only (easily) have a gist index on a box!
-		    box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS lseg_bbox,
+				-- ... but you can only (easily) have a gist index on a box!
+				box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS lseg_bbox,
 
-		    stops_and_frequency.from_stoppoint,
-		    stops_and_frequency.to_stoppoint,
-		    stops_and_frequency.days_mask,
-		    stops_and_frequency.hour_0,
-		    stops_and_frequency.hour_1,
-		    stops_and_frequency.hour_2,
-		    stops_and_frequency.hour_3,
-		    stops_and_frequency.hour_4,
-		    stops_and_frequency.hour_5,
-		    stops_and_frequency.hour_6,
-		    stops_and_frequency.hour_7,
-		    stops_and_frequency.hour_8,
-		    stops_and_frequency.hour_9,
-		    stops_and_frequency.hour_10,
-		    stops_and_frequency.hour_11,
-		    stops_and_frequency.hour_12,
-		    stops_and_frequency.hour_13,
-		    stops_and_frequency.hour_14,
-		    stops_and_frequency.hour_15,
-		    stops_and_frequency.hour_16,
-		    stops_and_frequency.hour_17,
-		    stops_and_frequency.hour_18,
-		    stops_and_frequency.hour_19,
-		    stops_and_frequency.hour_20,
-		    stops_and_frequency.hour_21,
-		    stops_and_frequency.hour_22,
-		    stops_and_frequency.hour_23,
-		    stops_and_frequency.bus_per_week,
-		    stops_and_frequency.runtimes
-		   FROM stops_and_frequency
-		     JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
-		     JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
+				stops_and_frequency.from_stoppoint,
+				stops_and_frequency.to_stoppoint,
+				stops_and_frequency.weekday,
 
-		   WITH NO DATA
+				stops_and_frequency.hour_array_total,
+				stops_and_frequency.hour_array_best_service,
+				stops_and_frequency.service_ids,
+				stops_and_frequency.min_runtime,
+				stops_and_frequency.max_runtime
+
+			FROM stops_and_frequency
+			JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
+			JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
+
+		WITH NO DATA;
 		""")
 		cur.execute("""
-			CREATE INDEX idx_mv_link_frequency2_%(shard)s
-			ON mv_link_frequency2_%(shard)s
+			CREATE INDEX idx_mv_link_frequency3_%(shard)s
+			ON mv_link_frequency3_%(shard)s
 			USING gist(lseg_bbox);
 		""" % dict(shard=shard))
 
-	cur.execute("""CREATE VIEW mv_link_frequency2 AS """ + 
-	"""
-		UNION ALL
-	""".join("""
-		 SELECT
-		    mv_link_frequency2_%(shard)s.line_segment,
-		    mv_link_frequency2_%(shard)s.lseg_bbox,
-		    mv_link_frequency2_%(shard)s.from_stoppoint,
-		    mv_link_frequency2_%(shard)s.to_stoppoint,
-		    mv_link_frequency2_%(shard)s.days_mask,
-		    mv_link_frequency2_%(shard)s.hour_0,
-		    mv_link_frequency2_%(shard)s.hour_1,
-		    mv_link_frequency2_%(shard)s.hour_2,
-		    mv_link_frequency2_%(shard)s.hour_3,
-		    mv_link_frequency2_%(shard)s.hour_4,
-		    mv_link_frequency2_%(shard)s.hour_5,
-		    mv_link_frequency2_%(shard)s.hour_6,
-		    mv_link_frequency2_%(shard)s.hour_7,
-		    mv_link_frequency2_%(shard)s.hour_8,
-		    mv_link_frequency2_%(shard)s.hour_9,
-		    mv_link_frequency2_%(shard)s.hour_10,
-		    mv_link_frequency2_%(shard)s.hour_11,
-		    mv_link_frequency2_%(shard)s.hour_12,
-		    mv_link_frequency2_%(shard)s.hour_13,
-		    mv_link_frequency2_%(shard)s.hour_14,
-		    mv_link_frequency2_%(shard)s.hour_15,
-		    mv_link_frequency2_%(shard)s.hour_16,
-		    mv_link_frequency2_%(shard)s.hour_17,
-		    mv_link_frequency2_%(shard)s.hour_18,
-		    mv_link_frequency2_%(shard)s.hour_19,
-		    mv_link_frequency2_%(shard)s.hour_20,
-		    mv_link_frequency2_%(shard)s.hour_21,
-		    mv_link_frequency2_%(shard)s.hour_22,
-		    mv_link_frequency2_%(shard)s.hour_23,
-		    mv_link_frequency2_%(shard)s.bus_per_week,
-		    mv_link_frequency2_%(shard)s.runtimes
-		   FROM mv_link_frequency2_%(shard)s
-		""" % dict(shard=shard)
-		for shard in SHARDS))
+	cur.execute("""CREATE VIEW mv_link_frequency3 AS """ +
+		"""
+			UNION ALL
+		""".join("""
+			SELECT
+			mv_link_frequency3_%(shard)s.*
+			FROM mv_link_frequency3_%(shard)s
+			""" % dict(shard=shard)
+			for shard in SHARDS))
 
 def update_all_journeypattern_boundingbox(conn):
 	with conn as transaction_conn:
