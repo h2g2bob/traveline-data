@@ -30,6 +30,10 @@
 	z-index: 1100;
 }
 
+#controls .key {
+	margin-top: 0.2em;
+}
+
 #controls .key > .line {
 	display: inline-block;
 	width: 5em;
