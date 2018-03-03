@@ -34,8 +34,52 @@
 		<div id="display">
 			<h3>Frequency</h3>
 			<div>
-				<div>
-					<span class="dfn" title="12pm">Daytime</span> <span class="dfn" title="Monday">weekday</span> bus frequencies.
+				<div id="frequency-human">
+					<div>
+						<span class="dfn" title="12pm">Daytime</span> <span class="dfn" title="Monday">weekday</span> bus frequencies.
+					</div>
+					<div>
+						<span id="show-frequency-drilldown" class="clickable option-icon">More options</span>
+					</div>
+				</div>
+				<div id="frequency-drilldown">
+					<div>
+						Frequency of bus services
+					</div>
+					<div>
+						<select id="freq-weekday" class="half">
+							<option value="S">Saturday</option>
+							<option value="N">Sunday</option>
+							<option value="M" selected>Monday</option>
+							<option value="T">Tuesday</option>
+							<option value="W">Wednesday</option>
+							<option value="H">Thursday</option>
+							<option value="F">Friday</option>
+						</select><select id="freq-time" class="half">
+							<option value="0">Midnight-1am</option>
+							<option value="1">1am-2am</option>
+							<option value="6">6am-7am</option>
+							<option value="7">7am-8am</option>
+							<option value="8">8am-9am (am peak)</option>
+							<option value="12" selected>noon-1pm (daytime)</option>
+							<option value="15">3pm-4pm</option>
+							<option value="17">5pm-6pm (pm peak)</option>
+							<option value="19">7pm-8pm</option>
+							<option value="20">8pm-9pm</option>
+							<option value="22">10pm-11pm</option>
+						</select>
+					</div>
+					<div>
+						Where a road has multiple bus services running on it
+					</div>
+					<div>
+						<input type="radio" id="freq-services-all" name="freq-services" value="all" checked>
+						<label for="freq-services-all">add together the buses of all the bus services</label>
+					</div>
+					<div>
+						<input type="radio" id="freq-services-best" name="freq-services" value="best">
+						<label for="freq-services-best">only show buses from the most frequent service (more meaningful if bus services go to different destinations, where you need to wait for the service you require)</label>
+					</div>
 				</div>
 				<div class="key">
 					<span class="line" style="border-bottom-color: #ffeedd">60 min

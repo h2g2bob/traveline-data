@@ -48,3 +48,19 @@
 	border-bottom: 1px black dotted;
 	display: inline-block;
 }
+
+#controls span.clickable {
+	color: #4444ff;
+	font-size: 80%;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+#controls span.option-icon::before {
+	content: "🔧";
+}
+
+#controls #frequency-drilldown {
+	display: none;
+	font-size: 80%;
+}

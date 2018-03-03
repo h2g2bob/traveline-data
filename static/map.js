@@ -44,6 +44,22 @@ window.addEventListener("load", function () {
 	});
 
 
+	var show_extended_ui = function () {
+		$("#frequency-human").hide();
+		$("#frequency-drilldown").show();
+		$("#display").accordion("refresh");
+	}
+	$("#show-frequency-drilldown").on("click", show_extended_ui);
+
+	if ($("#freq-time").val() != "12"
+	 || $("#freq-weekday").val() != "M"
+	 || $("input[name='freq-services']:checked").val() != "all") {
+		/* refreshing the page keeps old values in a form */
+		/* so detect when this happens */
+		show_extended_ui();
+	}
+
+
 	/* data */
 
 	var fetch_and_refresh_display = function(weekday, json_display_args) {
@@ -67,8 +83,8 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	var color_freq = function (freq_data, hour) {
-		var freq = freq_data.all_services[hour];
+	var color_freq = function (frequencies, hour) {
+		var freq = frequencies[hour];
 		if (freq >= 12) {
 			return "#ff0000"
 		} else if (freq >=8) {
@@ -85,12 +101,14 @@ window.addEventListener("load", function () {
 	};
 
 	var on_change_frequencies = function() {
-		var HOUR = 12;
-		var DOW = 'M';
-		fetch_and_refresh_display(DOW, {
+		var hour = parseInt($("#freq-time").val());
+		var weekday = $("#freq-weekday").val();
+		var frequency_type = $("input[name='freq-services']:checked").val() == "all" ? "all_services" : "single_service";
+
+		fetch_and_refresh_display(weekday, {
 			style: function (feature) {
 				return {
-					"color": color_freq(feature.properties.frequencies[DOW], HOUR),
+					"color": color_freq(feature.properties.frequencies[weekday][frequency_type], hour),
 					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
 				};
 			},
@@ -98,7 +116,7 @@ window.addEventListener("load", function () {
 				if (feature.properties.length > 0.2) {
 					return false;  /* hide obviously flase long paths */
 				}
-				return color_freq(feature.properties.frequencies[DOW], HOUR) !== undefined;
+				return color_freq(feature.properties.frequencies[weekday][frequency_type], hour) !== undefined;
 			}
 		});
 	};
