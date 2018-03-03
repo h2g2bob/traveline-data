@@ -57,7 +57,7 @@
 }
 
 #controls span.option-icon::before {
-	content: "🔧";
+	content: "⚙ ";
 }
 
 #controls #frequency-drilldown {
