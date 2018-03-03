@@ -351,4 +351,8 @@ window.addEventListener("load", function () {
 	mymap.on('load', on_change);
 	mymap.setView([51.539691790887, 0.71413324224317], 15);
 
+	$("#freq-time").on("change", on_change);
+	$("#freq-weekday").on("change", on_change);
+	$("input[name='freq-services']").on("change", on_change);
+
 });
