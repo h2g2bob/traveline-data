@@ -295,6 +295,49 @@ def create_mv_link_frequency3(cur):
 	VALUES (1, 'M'), (2, 'T'), (4, 'W'), (8, 'H'), (16, 'F'), (32, 'S'), (64, 'N');
 	""")
 
+
+	cur.execute("""
+	CREATE FUNCTION hourarray_add(INT[24], INT[24]) RETURNS INT[24]
+        AS $$
+                SELECT ARRAY[
+                        $1[1] + $2[1],
+                        $1[2] + $2[2],
+                        $1[3] + $2[3],
+                        $1[4] + $2[4],
+                        $1[5] + $2[5],
+                        $1[6] + $2[6],
+                        $1[7] + $2[7],
+                        $1[8] + $2[8],
+                        $1[9] + $2[9],
+                        $1[10] + $2[10],
+                        $1[11] + $2[11],
+                        $1[12] + $2[12],
+                        $1[13] + $2[13],
+                        $1[14] + $2[14],
+                        $1[15] + $2[15],
+                        $1[16] + $2[16],
+                        $1[17] + $2[17],
+                        $1[18] + $2[18],
+                        $1[19] + $2[19],
+                        $1[20] + $2[20],
+                        $1[21] + $2[21],
+                        $1[22] + $2[22],
+                        $1[23] + $2[23],
+                        $1[24] + $2[24]
+                ];
+        $$ LANGUAGE SQL
+        IMMUTABLE
+        RETURNS NULL ON NULL INPUT;
+	""")
+	cur.execute("""
+	CREATE AGGREGATE hourarray_sum (int[24])
+	(
+	    sfunc = hourarray_add,
+	    stype = int[24],
+	    initcond = '{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}'
+	);
+	""")
+
 	cur.execute("""
 	CREATE FUNCTION runtime_to_seconds(TEXT) RETURNS integer
 	AS $$
