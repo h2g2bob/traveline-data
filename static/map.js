@@ -74,7 +74,7 @@ window.addEventListener("load", function () {
 		} else if (freq >=8) {
 			return "#ff7700"
 		} else if (freq >=4) {
-			return "#ffcc77"
+			return "#ffaa44"
 		} else if (freq >=2) {
 			return "#ffddbb"
 		} else {
