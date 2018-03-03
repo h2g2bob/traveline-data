@@ -75,6 +75,84 @@ def postcode_complete():
 			data = [postcode for [postcode] in cur.fetchall()]
 			return jsonify({"results": data})
 
+def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, min_runtime, max_runtime, frequency_array):
+	return {
+		"type": "Feature",
+		"geometry": {
+			"type": "LineString",
+			"coordinates": [
+				[from_lng, from_lat],
+				[to_lng, to_lat],
+				]
+			},
+		"properties": {
+			"length": length,
+			"frequencies": frequency_array,
+			"min_runtime": min_runtime,
+			"max_runtime": max_runtime,
+			},
+		"id": 1
+		}
+
+
+@app.route('/geojson/v3/links/')
+def geojson_frequency_v3():
+	with database() as conn:
+		statement_timeout(conn, 10)
+		with conn.cursor() as cur:
+			cur.execute("""
+				with bus_per_hour_for_day as (
+					select
+						from_stoppoint,
+						to_stoppoint,
+						first_value(line_segment) over (partition by from_stoppoint, to_stoppoint) as line_segment,
+						min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
+						max(max_runtime) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
+						hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total
+					from mv_link_frequency3
+					where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+					and weekday = %(dow)s
+				)
+				select
+					from_stoppoint,
+					to_stoppoint,
+					(line_segment[0]::point)[0],
+					(line_segment[0]::point)[1],
+					(line_segment[1]::point)[0],
+					(line_segment[1]::point)[1],
+					length(line_segment),
+					min_runtime,
+					max_runtime,
+					hour_array_total
+
+				from bus_per_hour_for_day;
+
+				""", dict(
+					minlat=request.args.get('minlat'),
+					minlng=request.args.get('minlng'),
+					maxlat=request.args.get('maxlat'),
+					maxlng=request.args.get('maxlng'),
+					dow=request.args.get('dow', 'M')))
+
+			return jsonify({
+				"type": "FeatureCollection",
+				"features": [
+					_one_feature_v3(*row)
+					for row in cur
+					]
+				})
+
+DAY_OF_WEEK_CODE = {
+	'': 0x01,
+	'M': 0x01,
+	'T': 0x02,
+	'W': 0x04,
+	'H': 0x08,
+	'F': 0x10,
+	'S': 0x20,
+	'N': 0x40,
+	}
+
 def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, min_runtime, max_runtime, frequency_array):
 	frequency_array = [float(freq) for freq in frequency_array]  # Damn you Decimal module
 	return {
@@ -94,17 +172,6 @@ def _one_feature(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, min
 			},
 		"id": 1
 		}
-
-DAY_OF_WEEK_CODE = {
-	'': 0x01,
-	'M': 0x01,
-	'T': 0x02,
-	'W': 0x04,
-	'H': 0x08,
-	'F': 0x10,
-	'S': 0x20,
-	'N': 0x40,
-	}
 
 @app.route('/geojson/')
 def geojson_frequency():
