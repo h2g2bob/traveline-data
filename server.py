@@ -75,7 +75,7 @@ def postcode_complete():
 			data = [postcode for [postcode] in cur.fetchall()]
 			return jsonify({"results": data})
 
-def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, min_runtime, max_runtime, frequency_array):
+def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday, length, min_runtime, max_runtime, all_services_array, one_service_array):
 	return {
 		"type": "Feature",
 		"geometry": {
@@ -87,9 +87,16 @@ def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, length, 
 			},
 		"properties": {
 			"length": length,
-			"frequencies": frequency_array,
-			"min_runtime": min_runtime,
-			"max_runtime": max_runtime,
+			"frequencies": {
+				weekday : {
+					"single_service": one_service_array,
+					"all_services": all_services_array,
+					},
+				},
+			"runtime": {
+				"min": min_runtime,
+				"max": max_runtime,
+				}
 			},
 		"id": 1
 		}
@@ -108,10 +115,11 @@ def geojson_frequency_v3():
 						first_value(line_segment) over (partition by from_stoppoint, to_stoppoint) as line_segment,
 						min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
 						max(max_runtime) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
-						hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total
+						hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total,
+						hourarray_sum(hour_array_best_service::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_best_service
 					from mv_link_frequency3
 					where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-					and weekday = %(dow)s
+					and weekday = %(weekday)s
 				)
 				select
 					from_stoppoint,
@@ -120,10 +128,12 @@ def geojson_frequency_v3():
 					(line_segment[0]::point)[1],
 					(line_segment[1]::point)[0],
 					(line_segment[1]::point)[1],
+					%(weekday)s as weekday,
 					length(line_segment),
 					min_runtime,
 					max_runtime,
-					hour_array_total
+					hour_array_total,
+					hour_array_best_service
 
 				from bus_per_hour_for_day;
 
@@ -132,7 +142,7 @@ def geojson_frequency_v3():
 					minlng=request.args.get('minlng'),
 					maxlat=request.args.get('maxlat'),
 					maxlng=request.args.get('maxlng'),
-					dow=request.args.get('dow', 'M')))
+					weekday=request.args.get('weekday', 'M')))
 
 			return jsonify({
 				"type": "FeatureCollection",
