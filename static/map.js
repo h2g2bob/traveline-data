@@ -46,20 +46,19 @@ window.addEventListener("load", function () {
 
 	/* data */
 
-	var fetch_and_refresh_display = function(json_display_args) {
+	var fetch_and_refresh_display = function(weekday, json_display_args) {
 		var bound = mymap.getBounds();
-		var DAY = "M";
 
 		$.ajax({
 			"method": "GET",
-			"url": "/geojson/",
+			"url": "/geojson/v3/links/",
 			"datatype": "json",
 			"data": {
 				"minlat": bound.getSouth(),
 				"maxlat": bound.getNorth(),
 				"minlng": bound.getWest(),
 				"maxlng": bound.getEast(),
-				"dow": DAY
+				"weekday": weekday
 			}
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, json_display_args);
@@ -68,7 +67,8 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	var color_freq = function (freq) {
+	var color_freq = function (freq_data, hour) {
+		var freq = freq_data.all_services[hour];
 		if (freq >= 12) {
 			return "#ff0000"
 		} else if (freq >=8) {
@@ -77,46 +77,42 @@ window.addEventListener("load", function () {
 			return "#ffaa44"
 		} else if (freq >=2) {
 			return "#ffddbb"
-		} else {
+		} else if (freq >0) {
 			return "#ffeedd"
+		} else {
+			return undefined;
 		}
 	};
 
 	var on_change_frequencies = function() {
 		var HOUR = 12;
-		fetch_and_refresh_display({
+		var DOW = 'M';
+		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
-				return feature.properties &&
-					feature.properties.frequencies &&
-					{
-						"color": color_freq(feature.properties.frequencies[HOUR]),
-						"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
-					};
+				return {
+					"color": color_freq(feature.properties.frequencies[DOW], HOUR),
+					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
+				};
 			},
 			filter: function (feature, layer) {
 				if (feature.properties.length > 0.2) {
 					return false;  /* hide obviously flase long paths */
 				}
-				return feature.properties &&
-					feature.properties.frequencies &&
-					(feature.properties.frequencies[HOUR] >= 1)
+				return color_freq(feature.properties.frequencies[DOW], HOUR) !== undefined;
 			}
 		});
 	};
 
-	function color_last_bus(properties) {
-		if (!properties || !properties.frequencies) {
-			return undefined
-		}
-		if (properties.frequencies[23] > 0) {
+	function color_last_bus(frequencies) {
+		if (frequencies[23] > 0) {
 			return "#0000ff"
-		} else if (properties.frequencies[22] > 0) {
+		} else if (frequencies[22] > 0) {
 			return "#0077ff"
-		} else if (properties.frequencies[21] > 0) {
+		} else if (frequencies[21] > 0) {
 			return "#77ccff"
-		} else if (properties.frequencies[20] > 0) {
+		} else if (frequencies[20] > 0) {
 			return "#bbddff"
-		} else if (properties.frequencies[19] > 0) {
+		} else if (frequencies[19] > 0) {
 			return "#ddeeff"
 		} else {
 			/* not worth showing */
@@ -126,9 +122,10 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_lastbus = function() {
-		fetch_and_refresh_display({
+		var DOW = 'M';
+		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
-				var color = color_last_bus(feature.properties);
+				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return {
 					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 					"color": color
@@ -138,7 +135,7 @@ window.addEventListener("load", function () {
 				if (feature.properties.length > 0.2) {
 					return false;  /* hide obviously flase long paths */
 				}
-				var color = color_last_bus(feature.properties);
+				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return color !== undefined;
 			}
 		});
@@ -162,11 +159,8 @@ window.addEventListener("load", function () {
 		return d;
 	}
 
-	function color_congestion(properties, geometry) {
-		if (!properties || !properties.frequencies || !geometry || !geometry.coordinates) {
-			return undefined;
-		}
-		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
+	function color_congestion(frequencies, journey_time, geometry) {
+		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
@@ -177,7 +171,6 @@ window.addEventListener("load", function () {
 			geometry.coordinates[1][1],
 			geometry.coordinates[1][0]);
 
-		var journey_time = properties.max_runtime;
 		if (journey_time === undefined) {
 			return undefined;
 		} else if (journey_time < 1) {
@@ -203,9 +196,13 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_congestion = function() {
-		fetch_and_refresh_display({
+		var DOW = 'M'
+		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
-				var color = color_congestion(feature.properties, feature.geometry);
+				var color = color_congestion(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry);
 				return {
 					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 					"color": color
@@ -215,7 +212,10 @@ window.addEventListener("load", function () {
 				if (feature.properties.length > 0.2) {
 					return false;  /* hide obviously flase long paths */
 				}
-				var color = color_congestion(feature.properties, feature.geometry);
+				var color = color_congestion(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry);
 				return color !== undefined;
 			}
 		});
@@ -244,11 +244,8 @@ window.addEventListener("load", function () {
 		return seconds_saved_per_passenger * number_of_passengers;
 	};
 
-	function color_opportunities(properties, geometry) {
-		if (!properties || !properties.frequencies || !geometry || !geometry.coordinates) {
-			return undefined;
-		}
-		if ($(properties.frequencies).filter(function (x) { return x != 0; }).length == 0) {
+	function color_opportunities(frequencies, journey_time, geometry) {
+		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
@@ -259,14 +256,13 @@ window.addEventListener("load", function () {
 			geometry.coordinates[1][1],
 			geometry.coordinates[1][0]);
 
-		var journey_time = properties.max_runtime;
 		if (journey_time === undefined) {
 			return undefined;
 		} else if (journey_time < 1) {
 			return undefined;
 		}
 
-		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, properties.frequencies)
+		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies)
 		var time_saved_hours = time_saved / 3600;
 		var value_of_time = 10; /* average wage is 10 gbp/hour */
 		var time_saved_cost = value_of_time * time_saved_hours;
@@ -286,9 +282,13 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_opportunities = function() {
-		fetch_and_refresh_display({
+		var DOW = 'M';
+		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
-				var color = color_opportunities(feature.properties, feature.geometry);
+				var color = color_opportunities(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry);
 				return {
 					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 					"color": color
@@ -298,7 +298,10 @@ window.addEventListener("load", function () {
 				if (feature.properties.length > 0.2) {
 					return false;  /* hide obviously flase long paths */
 				}
-				var color = color_opportunities(feature.properties, feature.geometry);
+				var color = color_opportunities(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry);
 				return color !== undefined;
 			}
 		});
