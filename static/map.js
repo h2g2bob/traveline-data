@@ -136,15 +136,15 @@ window.addEventListener("load", function () {
 	};
 
 	function color_last_bus(frequencies) {
-		if (frequencies[23] > 0) {
+		if (frequencies[2] > 0 || frequencies[3] > 0) {
 			return "#0000ff"
-		} else if (frequencies[22] > 0) {
+		} else if (frequencies[0] > 0 || frequencies[1] > 0) {
 			return "#0077ff"
-		} else if (frequencies[21] > 0) {
+		} else if (frequencies[22] > 0 || frequencies[23] > 0) {
 			return "#77ccff"
-		} else if (frequencies[20] > 0) {
+		} else if (frequencies[20] > 0 || frequencies[21] > 0) {
 			return "#bbddff"
-		} else if (frequencies[19] > 0) {
+		} else if (frequencies[18] > 0 || frequencies[19] > 0) {
 			return "#ddeeff"
 		} else {
 			/* not worth showing */
@@ -154,7 +154,7 @@ window.addEventListener("load", function () {
 	}
 
 	var on_change_lastbus = function() {
-		var DOW = 'M';
+		var DOW = 'T';
 		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
