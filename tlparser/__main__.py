@@ -72,7 +72,7 @@ def parse_args():
 	parser.add_argument('--generate', help='generate a table used as an index', action="store_true", default=False)
 	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
 	parser.add_argument('--database', help='databse location', default="dbname=travelinedata")
-	parser.add_argument('--target-week', help='the dataset includes data for many weeks, but you should pick one. This value should be a monday', required=True)
+	parser.add_argument('--target-week', dest="monday_of_desired_week", help='the dataset includes data for many weeks, but you should pick one. This value should be a monday', required=False)
 
 	return parser.parse_args()
 
