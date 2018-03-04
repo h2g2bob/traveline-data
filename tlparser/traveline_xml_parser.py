@@ -15,7 +15,7 @@ def maybe_one(many):
 		return None
 	raise ValueError(many)
 
-def add_operator(elem, conn, source_id):
+def add_operator(elem, conn, source_id, _args):
 	operator_id = elem.get("id")
 	[shortname] = elem.xpath("./tx:OperatorShortName/text()", namespaces=NAMESPACES)
 	with conn.cursor() as cur:
@@ -26,7 +26,7 @@ def add_operator(elem, conn, source_id):
 		""", (source_id, operator_id, shortname,))
 
 
-def add_service(elem, conn, source_id):
+def add_service(elem, conn, source_id, _args):
 	[servicecode] = elem.xpath("./tx:ServiceCode/text()", namespaces=NAMESPACES)
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	mode = maybe_one(elem.xpath("./tx:Mode/text()", namespaces=NAMESPACES))
@@ -70,7 +70,7 @@ def add_service(elem, conn, source_id):
 					VALUES (%s, %s, %s)
 				""", (source_id, jpsectionintern, jpintern))
 
-def add_journeypatternsection(elem, conn, source_id):
+def add_journeypatternsection(elem, conn, source_id, _args):
 	jpsection = elem.get("id")
 	with conn.cursor() as cur:
 		jpsectionintern = interned_jpsection(conn, source_id, jpsection)
@@ -93,7 +93,10 @@ def add_journeypatternsection(elem, conn, source_id):
 				VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 			""", (source_id, jptiminglinkintern, jpsectionintern, routelinkintern, runtime, from_sequence, from_stoppoint_id, to_sequence, to_stoppoint_id))
 
-def add_vehiclejourney(elem, conn, source_id):
+def parse_date(date_str):
+	return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+
+def add_vehiclejourney(elem, conn, source_id, args):
 	[vjcode] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 
 	# a vehiclejourney will either have a reference to a journeypattern...
@@ -143,6 +146,33 @@ def add_vehiclejourney(elem, conn, source_id):
 			raise ValueError(days.tag)
 
 
+	# When chaning the service pattern, some routes list the service twice,
+	# and exclude the "wrong" timetable.
+	# For example, when re-timing a saturday service, one operator added a
+	# DaysOfNonOperation for each individual saturday on one or other of
+	# the timetables.
+	monday_of_desired_week = parse_date(args.monday_of_desired_week)
+	assert monday_of_desired_week.weekday() == 0
+	exact_date_to_bitmask = {
+		monday_of_desired_week: MON,
+		monday_of_desired_week + datetime.timedelta(days=1): TUE,
+		monday_of_desired_week + datetime.timedelta(days=2): WED,
+		monday_of_desired_week + datetime.timedelta(days=3): THUR,
+		monday_of_desired_week + datetime.timedelta(days=4): FRI,
+		monday_of_desired_week + datetime.timedelta(days=5): SAT,
+		monday_of_desired_week + datetime.timedelta(days=6): SUN,
+	}
+	for non_days in elem.xpath("./tx:OperatingProfile/tx:SpecialDaysOperation/tx:DaysOfNonOperation", namespaces=NAMESPACES):
+		[exclude_start] = [parse_date(date) for date in non_days.xpath("./tx:StartDate/text()")]
+		[exclude_end] = [parse_date(date) for date in non_days.xpath("./tx:EndDate/text()")]
+		exclude_date = exclude_start
+		while exclude_date <= exclude_end:
+			remove_bits = exact_date_to_bitmask.get(exclude_date, 0)
+			days_bitmask &= ~remove_bits
+			exclude_date += datetime.timedelta(days=1)
+
+
+
 	departuretime_time = datetime.datetime.strptime(departuretime, "%H:%M:%S").time()
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
@@ -156,7 +186,7 @@ def add_vehiclejourney(elem, conn, source_id):
 			VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
 		""", (source_id, vjintern, othervjintern, jpintern, lineintern, privatecode, days_bitmask, departuretime, departuretime_seconds))
 
-def add_route(elem, conn, source_id):
+def add_route(elem, conn, source_id, _args):
 	routecode = elem.get("id")
 	privatecode = maybe_one(elem.xpath("./tx:PrivateCode/text()", namespaces=NAMESPACES))
 	[description] = elem.xpath("./tx:Description/text()", namespaces=NAMESPACES)
@@ -169,7 +199,7 @@ def add_route(elem, conn, source_id):
 			VALUES (%s, %s, %s, %s, %s)
 		""", (source_id, route_id, privatecode, routesection, description,))
 
-def add_routesection(elem, conn, source_id):
+def add_routesection(elem, conn, source_id, _args):
 	routesection = elem.get("id")
 	for linkelem in elem.xpath("./tx:RouteLink", namespaces=NAMESPACES):
 		routelinkcode = linkelem.get("id")
@@ -186,7 +216,7 @@ def add_routesection(elem, conn, source_id):
 				VALUES (%s, %s, %s, %s, %s, %s)
 			""", (source_id, routelink_id, routesection, from_stoppoint_id, to_stoppoint_id, direction,))
 
-def add_stoppoint(elem, conn, _source_id):
+def add_stoppoint(elem, conn, _source_id, _args):
 	[stoppoint] = elem.xpath("./tx:StopPointRef/text()", namespaces=NAMESPACES)
 	[name] = elem.xpath("./tx:CommonName/text()", namespaces=NAMESPACES)
 	indicator = maybe_one(elem.xpath("./tx:Indicator/text()", namespaces=NAMESPACES))

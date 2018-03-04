@@ -47,10 +47,10 @@ def main():
 
 	if args.process:
 		conn = psycopg2.connect(args.database)
-		traveline_file_parser.process_all_files(conn)
+		traveline_file_parser.process_all_files(conn, args=args)
 	elif args.process_test_data:
 		conn = psycopg2.connect(args.database)
-		traveline_file_parser.process_all_files(conn, test_data_only=True)
+		traveline_file_parser.process_all_files(conn, test_data_only=True, args=args)
 
 	if args.generate:
 		with psycopg2.connect(args.database) as conn:
@@ -72,6 +72,7 @@ def parse_args():
 	parser.add_argument('--generate', help='generate a table used as an index', action="store_true", default=False)
 	parser.add_argument('--matview', help='refresh materialized views', action="store_true", default=False)
 	parser.add_argument('--database', help='databse location', default="dbname=travelinedata")
+	parser.add_argument('--target-week', help='the dataset includes data for many weeks, but you should pick one. This value should be a monday', required=True)
 
 	return parser.parse_args()
 
