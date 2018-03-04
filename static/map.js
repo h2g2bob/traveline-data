@@ -271,7 +271,7 @@ window.addEventListener("load", function () {
 		for (var i = 0; i < frequencies.length; ++i) {
 			number_of_buses += frequencies[i];
 		}
-		var passengers_per_bus = 10;
+		var passengers_per_bus = assumptions.passengers_per_bus;
 		var number_of_passengers = passengers_per_bus * number_of_buses;
 
 		return seconds_saved_per_passenger * number_of_passengers;
@@ -297,9 +297,13 @@ window.addEventListener("load", function () {
 
 		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies, assumptions)
 		var time_saved_hours = time_saved / 3600;
-		var value_of_time = 10; /* average wage is 10 gbp/hour */
-		var time_saved_cost = value_of_time * time_saved_hours;
-		var time_saved_cost_per_year = time_saved_cost * 365;
+
+		var working_days_per_year = 52 * 5 /* 52 weeks/year * 5 days/week */
+		var median_wage_per_day = assumptions.median_wage_per_year / working_days_per_year;
+		var value_of_time_per_hour = median_wage_per_day / assumptions.hours_worked_per_day;
+
+		var time_saved_cost = value_of_time_per_hour * time_saved_hours;
+		var time_saved_cost_per_year = time_saved_cost * working_days_per_year;
 
 		if (time_saved_cost_per_year < 10000) {
 			return "#ddffee"
@@ -318,7 +322,10 @@ window.addEventListener("load", function () {
 		var DOW = 'M';
 		var assumptions = {
 			ideal_speed_mph: parseInt($("#oppy-speed").val()),
-			distance_m: parseInt($("#oppy-distance").val())
+			distance_m: parseInt($("#oppy-distance").val()),
+			passengers_per_bus: 11.1, /* https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/11854/annual-bus-statistics-2011-12.pdf#page=7 */
+			median_wage_per_year: 21000,
+			hours_worked_per_day: 37 / 5
 		}
 		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
