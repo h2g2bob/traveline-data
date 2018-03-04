@@ -162,7 +162,7 @@ def add_vehiclejourney(elem, conn, source_id, args):
 		monday_of_desired_week + datetime.timedelta(days=5): SAT,
 		monday_of_desired_week + datetime.timedelta(days=6): SUN,
 	}
-	for non_days in elem.xpath("./tx:OperatingProfile/tx:SpecialDaysOperation/tx:DaysOfNonOperation", namespaces=NAMESPACES):
+	for non_days in elem.xpath("./tx:OperatingProfile/tx:SpecialDaysOperation/tx:DaysOfNonOperation/tx:DateRange", namespaces=NAMESPACES):
 		[exclude_start] = [parse_date(date) for date in non_days.xpath("./tx:StartDate/text()", namespaces=NAMESPACES)]
 		[exclude_end] = [parse_date(date) for date in non_days.xpath("./tx:EndDate/text()", namespaces=NAMESPACES)]
 		exclude_date = exclude_start
