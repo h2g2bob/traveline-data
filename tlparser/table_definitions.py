@@ -230,12 +230,14 @@ def drop_materialized_views(conn):
 		cur.execute("""
 			DROP MATERIALIZED VIEW IF EXISTS mv_vehiclejourney_per_hour;
 			""")
+		drop_mv_link_frequency3(cur)
 
 def refresh_materialized_views(conn):
 	with conn.cursor() as cur:
 		cur.execute("""
 			REFRESH MATERIALIZED VIEW mv_vehiclejourney_per_hour;
 			""")
+		refresh_mv_link_frequency3(cur)
 
 def create_materialized_views(conn):
 	with conn.cursor() as cur:
@@ -518,6 +520,33 @@ def create_mv_link_frequency3(cur):
 			FROM mv_link_frequency3_%(shard)s
 			""" % dict(shard=shard)
 			for shard in SHARDS))
+
+def drop_mv_link_frequency3(cur):
+	for shard in SHARDS:
+		cur.execute("""
+			DROP MATERIALIZED VIEW mv_link_frequency3_""" + shard + """
+			""")
+	cur.execute("""
+		DROP VIEW mv_link_frequency3
+		""")
+	cur.execute("""
+		DROP TABLE mask_to_weekday
+		""")
+	cur.execute("""
+		DROP FUNCTION hourarray_add(INT[24], INT[24])
+		""")
+	cur.execute("""
+		DROP AGGREGATE hourarray_sum (int[24])
+		""")
+	cur.execute("""
+		DROP FUNCTION runtime_to_seconds(TEXT)
+		""")
+
+def refresh_mv_link_frequency3(cur):
+	for shard in SHARDS:
+		cur.execute("""
+			REFRESH MATERIALIZED VIEW mv_link_frequency3_""" + shard + """
+			""")
 
 def update_all_journeypattern_boundingbox(conn):
 	with conn as transaction_conn:
