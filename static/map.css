@@ -60,7 +60,7 @@
 	content: "⚙ ";
 }
 
-#controls #frequency-drilldown {
+#controls div.drilldown {
 	display: none;
 	font-size: 80%;
 }

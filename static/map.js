@@ -44,19 +44,33 @@ window.addEventListener("load", function () {
 	});
 
 
-	var show_extended_ui = function () {
+	var show_frequency_drilldown = function () {
 		$("#frequency-human").hide();
 		$("#frequency-drilldown").show();
 		$("#display").accordion("refresh");
 	}
-	$("#show-frequency-drilldown").on("click", show_extended_ui);
+	$("#show-frequency-drilldown").on("click", show_frequency_drilldown);
 
 	if ($("#freq-time").val() != "12"
 	 || $("#freq-weekday").val() != "M"
 	 || $("input[name='freq-services']:checked").val() != "all") {
 		/* refreshing the page keeps old values in a form */
 		/* so detect when this happens */
-		show_extended_ui();
+		show_frequency_drilldown();
+	}
+
+	var show_opportunities_drilldown = function () {
+		$("#opportunities-human").hide();
+		$("#opportunities-drilldown").show();
+		$("#display").accordion("refresh");
+	}
+	$("#show-opportunities-drilldown").on("click", show_opportunities_drilldown);
+
+	if ($("#oppy-speed").val() != "10"
+	 || $("#oppy-distance").val() != "200") {
+		/* refreshing the page keeps old values in a form */
+		/* so detect when this happens */
+		show_opportunities_drilldown();
 	}
 
 
@@ -239,18 +253,19 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	var passenger_time_saved_per_day = function (journey_length, journey_time, frequencies) {
+	var passenger_time_saved_per_day = function (journey_length, journey_time, frequencies, assumptions) {
 		var mph_per_kmph = 0.6213712;
 
-		var ideal_speed_mph = 10;
+		var ideal_speed_mph = assumptions.ideal_speed_mph;
 		var ideal_speed_kmps = (ideal_speed_mph / mph_per_kmph) / 3600;
 
 		var actual_speed_kmps = journey_length / journey_time;
 
-		var travel_200m_takes = 0.2 / actual_speed_kmps;
-		var ideal_travel_200m_takes = 0.2 / ideal_speed_kmps;
+		var distance_km = assumptions.distance_m / 1000;
+		var travel_takes = distance_km / actual_speed_kmps;
+		var ideal_travel_takes = distance_km / ideal_speed_kmps;
 
-		var seconds_saved_per_passenger = travel_200m_takes - ideal_travel_200m_takes;
+		var seconds_saved_per_passenger = travel_takes - ideal_travel_takes;
 
 		var number_of_buses = 0;
 		for (var i = 0; i < frequencies.length; ++i) {
@@ -262,7 +277,7 @@ window.addEventListener("load", function () {
 		return seconds_saved_per_passenger * number_of_passengers;
 	};
 
-	function color_opportunities(frequencies, journey_time, geometry) {
+	function color_opportunities(frequencies, journey_time, geometry, assumptions) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
@@ -280,7 +295,7 @@ window.addEventListener("load", function () {
 			return undefined;
 		}
 
-		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies)
+		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies, assumptions)
 		var time_saved_hours = time_saved / 3600;
 		var value_of_time = 10; /* average wage is 10 gbp/hour */
 		var time_saved_cost = value_of_time * time_saved_hours;
@@ -301,12 +316,17 @@ window.addEventListener("load", function () {
 
 	var on_change_opportunities = function() {
 		var DOW = 'M';
+		var assumptions = {
+			ideal_speed_mph: parseInt($("#oppy-speed").val()),
+			distance_m: parseInt($("#oppy-distance").val())
+		}
 		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
 					feature.properties.runtime.max,
-					feature.geometry);
+					feature.geometry,
+					assumptions);
 				return {
 					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
 					"color": color
@@ -319,7 +339,8 @@ window.addEventListener("load", function () {
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
 					feature.properties.runtime.max,
-					feature.geometry);
+					feature.geometry,
+					assumptions);
 				return color !== undefined;
 			}
 		});
@@ -354,5 +375,7 @@ window.addEventListener("load", function () {
 	$("#freq-time").on("change", on_change);
 	$("#freq-weekday").on("change", on_change);
 	$("input[name='freq-services']").on("change", on_change);
+	$("#oppy-speed").on("change", on_change);
+	$("#oppy-distance").on("change", on_change);
 
 });
