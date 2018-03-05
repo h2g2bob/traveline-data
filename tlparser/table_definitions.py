@@ -3,6 +3,9 @@
 
 import logging
 
+SHARDS = ["ea", "em", "l", "ncsd", "nw", "s", "se", "sw", "w", "wm", "y"]
+
+
 def _table_command_intern(tablename):
 	"""
 	What's with the intern tables?
@@ -275,7 +278,6 @@ def create_materialized_views(conn):
 
 def create_mv_link_frequency3(cur):
 	logging.info("Defining mv_link_frequency3...")
-	SHARDS = ["ea", "em", "l", "ncsd", "nw", "s", "se", "sw", "w", "wm", "y"]
 
 	cur.execute("""
 	CREATE TABLE mask_to_weekday (mask INT UNIQUE, weekday CHAR UNIQUE);
