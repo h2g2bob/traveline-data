@@ -17,14 +17,6 @@ PK: `vjcode_id`
 A bus which departs at `deptime` (for the days in `days_mask`) and goes on the path described by `journeypattern_id`.
 
 
-`journeypattern_bounding_box`
------------------------------
-
-FK: `journeypattern_id`
-
-Efficient queries
-
-
 `journeypattern_service`
 ------------------------
 

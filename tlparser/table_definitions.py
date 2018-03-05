@@ -177,13 +177,6 @@ TABLE_COMMANDS = [
 			shortname TEXT);
 		"""),
 	("""
-		DROP TABLE IF EXISTS journeypattern_bounding_box;
-		""", """
-		CREATE TABLE journeypattern_bounding_box (
-			journeypattern_id INT REFERENCES journeypattern_service(journeypattern_id),
-			bounding_box box);
-		"""),
-	("""
 		DROP TABLE IF EXISTS oscodepointdata;
 		""", """
 		CREATE TABLE oscodepointdata(
@@ -218,11 +211,6 @@ def create_tables(conn):
 
 		cur.execute("""
 			CREATE INDEX idx_timing_section ON jptiminglink(jpsection_id);
-		""")
-		cur.execute("""
-			CREATE INDEX idx_journeypattern_bounding_box
-			ON journeypattern_bounding_box
-			USING gist (bounding_box);
 		""")
 
 def drop_materialized_views(conn):
@@ -547,44 +535,6 @@ def refresh_mv_link_frequency3(cur):
 		cur.execute("""
 			REFRESH MATERIALIZED VIEW mv_link_frequency3_""" + shard + """
 			""")
-
-def update_all_journeypattern_boundingbox(conn):
-	with conn as transaction_conn:
-		with transaction_conn.cursor() as cur:
-			cur.execute("""
-				SELECT journeypattern_id
-				FROM journeypattern_service
-				LEFT JOIN journeypattern_bounding_box USING (journeypattern_id)
-				WHERE journeypattern_bounding_box.journeypattern_id IS NULL;
-				""")
-			journeypattern_id_list = [journeypattern_id for [journeypattern_id] in cur]
-
-	logging.info("%d bounding boxes to calculate", len(journeypattern_id_list))
-
-	for journeypattern_id in journeypattern_id_list:
-		update_journeypattern_boundingbox(conn, journeypattern_id)
-
-def update_journeypattern_boundingbox(conn, journeypattern_id):
-	with conn as transaction_conn:
-		with transaction_conn.cursor() as cur:
-			cur.execute("""
-				INSERT INTO journeypattern_bounding_box (journeypattern_id, bounding_box)
-				SELECT
-					section.journeypattern_id,
-					box(
-						point(
-							(select min(minlat) from (select min(n_from.latitude) as minlat union select min(n_to.latitude) as minlat) as tminlat),
-							(select min(minlong) from (select min(n_from.longitude) as minlong union select min(n_to.longitude) as minlong) as tinlong)),
-						point(
-							(select max(maxlat) from (select max(n_from.latitude) as maxlat union select max(n_to.latitude) as maxlat) as tmaxlat),
-							(select max(maxlong) from (select max(n_from.longitude) as maxlong union select max(n_to.longitude) as maxlong) as tmaxling))) AS bounding_box
-				FROM jptiminglink timing
-				JOIN journeypattern_service_section section USING (jpsection_id)
-				JOIN naptan n_from ON n_from.atcocode_id = timing.from_stoppoint
-				JOIN naptan n_to ON n_to.atcocode_id = timing.to_stoppoint
-				WHERE section.journeypattern_id = %s
-				GROUP BY section.journeypattern_id;
-				""", (journeypattern_id,))
 
 def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:

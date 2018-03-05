@@ -3,7 +3,7 @@ import argparse
 import psycopg2
 import logging
 
-from .table_definitions import create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views, update_all_journeypattern_boundingbox
+from .table_definitions import create_tables, drop_materialized_views, create_materialized_views, refresh_materialized_views
 from . import naptan_file_parser
 from . import traveline_file_parser
 from . import codepoint_parser
@@ -51,10 +51,6 @@ def main():
 	elif args.process_test_data:
 		conn = psycopg2.connect(args.database)
 		traveline_file_parser.process_all_files(conn, test_data_only=True, args=args)
-
-	if args.generate:
-		with psycopg2.connect(args.database) as conn:
-			update_all_journeypattern_boundingbox(conn)
 
 	if args.matview:
 		with psycopg2.connect(args.database) as conn:
