@@ -96,7 +96,7 @@ def add_journeypatternsection(elem, conn, source_id, _args):
 def parse_date(date_str):
 	return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
 
-def add_vehiclejourney(elem, conn, source_id, args):
+def parse_single_vj_elem(elem, monday_of_desired_week):
 	[vjcode] = elem.xpath("./tx:VehicleJourneyCode/text()", namespaces=NAMESPACES)
 
 	# a vehiclejourney will either have a reference to a journeypattern...
@@ -151,7 +151,6 @@ def add_vehiclejourney(elem, conn, source_id, args):
 	# For example, when re-timing a saturday service, one operator added a
 	# DaysOfNonOperation for each individual saturday on one or other of
 	# the timetables.
-	monday_of_desired_week = parse_date(args.monday_of_desired_week)
 	assert monday_of_desired_week.weekday() == 0
 	exact_date_to_bitmask = {
 		monday_of_desired_week: MON,
@@ -171,9 +170,14 @@ def add_vehiclejourney(elem, conn, source_id, args):
 			days_bitmask &= ~remove_bits
 			exclude_date += datetime.timedelta(days=1)
 
-
-
 	departuretime_time = datetime.datetime.strptime(departuretime, "%H:%M:%S").time()
+
+	return [privatecode, jpref_id, vjcode, other_vjcode, linecode, days_bitmask, departuretime]
+
+def add_vehiclejourney(elem, conn, source_id, args):
+	monday_of_desired_week = parse_date(args.monday_of_desired_week)
+	[privatecode, jpref_id, vjcode, other_vjcode, linecode, days_bitmask, departuretime] = parse_single_vj_elem(elem, monday_of_desired_week)
+
 	departuretime_seconds = (departuretime_time.hour * 3600) + (departuretime_time.minute * 60) + departuretime_time.second
 
 	with conn.cursor() as cur:
