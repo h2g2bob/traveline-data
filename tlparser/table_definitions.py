@@ -3,8 +3,6 @@
 
 import logging
 
-SHARDS = ["ea", "em", "l", "ncsd", "nw", "s", "se", "sw", "w", "wm", "y"]
-
 
 def _table_command_intern(tablename):
 	"""
@@ -363,182 +361,158 @@ def create_mv_link_frequency3(cur):
 	RETURNS NULL ON NULL INPUT;
 	""")
 
-	for shard in SHARDS:
-		cur.execute("""
-		CREATE MATERIALIZED VIEW mv_link_frequency3_""" + shard + """ AS
-			WITH jptiminglink_subset AS (
-				SELECT
-					jptiminglink.from_stoppoint,
-					jptiminglink.to_stoppoint,
-					jptiminglink.jpsection_id,
-					runtime_to_seconds(jptiminglink.runtime) as runtime_sec
-				FROM jptiminglink
-				JOIN source USING (source_id)
-				WHERE source.source ~~ '""" + shard.upper() + """.zip/%'::text
-			),
-			stops_and_frequency_per_line AS (
-				SELECT
-					timing.from_stoppoint,
-					timing.to_stoppoint,
-					jp_service.service_id,
-					weekday.weekday,
-					ARRAY [
-						sum(vjph.hour_0),
-						sum(vjph.hour_1),
-						sum(vjph.hour_2),
-						sum(vjph.hour_3),
-						sum(vjph.hour_4),
-						sum(vjph.hour_5),
-						sum(vjph.hour_6),
-						sum(vjph.hour_7),
-						sum(vjph.hour_8),
-						sum(vjph.hour_9),
-						sum(vjph.hour_10),
-						sum(vjph.hour_11),
-						sum(vjph.hour_12),
-						sum(vjph.hour_13),
-						sum(vjph.hour_14),
-						sum(vjph.hour_15),
-						sum(vjph.hour_16),
-						sum(vjph.hour_17),
-						sum(vjph.hour_18),
-						sum(vjph.hour_19),
-						sum(vjph.hour_20),
-						sum(vjph.hour_21),
-						sum(vjph.hour_22),
-						sum(vjph.hour_23)
-					]::int[24] AS hour_array,
-					min(distinct timing.runtime_sec) as min_runtime,
-					max(distinct timing.runtime_sec) as max_runtime
-				FROM jptiminglink_subset timing
-				JOIN journeypattern_service_section section USING (jpsection_id)
-				JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
-				LEFT JOIN journeypattern_service jp_service USING (journeypattern_id)
-				JOIN mask_to_weekday weekday ON weekday.mask & vjph.days_mask > 0
-				GROUP BY
-					timing.from_stoppoint,
-					timing.to_stoppoint,
-					jp_service.service_id,
-					weekday.weekday
-			),
-			stops_and_frequency AS (
-				
-				SELECT
-					from_stoppoint,
-					to_stoppoint,
-					weekday,
-
-					ARRAY [
-						sum(hour_array[1]),
-						sum(hour_array[2]),
-						sum(hour_array[3]),
-						sum(hour_array[4]),
-						sum(hour_array[5]),
-						sum(hour_array[6]),
-						sum(hour_array[7]),
-						sum(hour_array[8]),
-						sum(hour_array[9]),
-						sum(hour_array[10]),
-						sum(hour_array[11]),
-						sum(hour_array[12]),
-						sum(hour_array[13]),
-						sum(hour_array[14]),
-						sum(hour_array[15]),
-						sum(hour_array[16]),
-						sum(hour_array[17]),
-						sum(hour_array[18]),
-						sum(hour_array[19]),
-						sum(hour_array[20]),
-						sum(hour_array[21]),
-						sum(hour_array[22]),
-						sum(hour_array[23]),
-						sum(hour_array[24])
-					] hour_array_total,
-
-					ARRAY [
-						max(hour_array[1]),
-						max(hour_array[2]),
-						max(hour_array[3]),
-						max(hour_array[4]),
-						max(hour_array[5]),
-						max(hour_array[6]),
-						max(hour_array[7]),
-						max(hour_array[8]),
-						max(hour_array[9]),
-						max(hour_array[10]),
-						max(hour_array[11]),
-						max(hour_array[12]),
-						max(hour_array[13]),
-						max(hour_array[14]),
-						max(hour_array[15]),
-						max(hour_array[16]),
-						max(hour_array[17]),
-						max(hour_array[18]),
-						max(hour_array[19]),
-						max(hour_array[20]),
-						max(hour_array[21]),
-						max(hour_array[22]),
-						max(hour_array[23]),
-						max(hour_array[24])
-					] hour_array_best_service,
-
-					array_agg(DISTINCT service_id) AS service_ids,
-					min(min_runtime) AS min_runtime,
-					max(max_runtime) AS max_runtime
-
-				FROM stops_and_frequency_per_line
-				GROUP BY
-					from_stoppoint,
-					to_stoppoint,
-					weekday
-			)
+	cur.execute("""
+	CREATE MATERIALIZED VIEW mv_link_frequency3 AS
+		WITH stops_and_frequency_per_line AS (
 			SELECT
-				-- a line segment allows you to draw directly from a
-				-- query on this table, which is a massive speed improvement
-				lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
-
-				-- ... but you can only (easily) have a gist index on a box!
-				box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS lseg_bbox,
-
-				stops_and_frequency.from_stoppoint,
-				stops_and_frequency.to_stoppoint,
-				stops_and_frequency.weekday,
-
-				stops_and_frequency.hour_array_total,
-				stops_and_frequency.hour_array_best_service,
-				stops_and_frequency.service_ids,
-				stops_and_frequency.min_runtime,
-				stops_and_frequency.max_runtime
-
-			FROM stops_and_frequency
-			JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
-			JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
-
-		WITH NO DATA;
-		""")
-		cur.execute("""
-			CREATE INDEX idx_mv_link_frequency3_%(shard)s
-			ON mv_link_frequency3_%(shard)s
-			USING gist(lseg_bbox);
-		""" % dict(shard=shard))
-
-	cur.execute("""CREATE VIEW mv_link_frequency3 AS """ +
-		"""
-			UNION ALL
-		""".join("""
+				timing.from_stoppoint,
+				timing.to_stoppoint,
+				jp_service.service_id,
+				weekday.weekday,
+				ARRAY [
+					sum(vjph.hour_0),
+					sum(vjph.hour_1),
+					sum(vjph.hour_2),
+					sum(vjph.hour_3),
+					sum(vjph.hour_4),
+					sum(vjph.hour_5),
+					sum(vjph.hour_6),
+					sum(vjph.hour_7),
+					sum(vjph.hour_8),
+					sum(vjph.hour_9),
+					sum(vjph.hour_10),
+					sum(vjph.hour_11),
+					sum(vjph.hour_12),
+					sum(vjph.hour_13),
+					sum(vjph.hour_14),
+					sum(vjph.hour_15),
+					sum(vjph.hour_16),
+					sum(vjph.hour_17),
+					sum(vjph.hour_18),
+					sum(vjph.hour_19),
+					sum(vjph.hour_20),
+					sum(vjph.hour_21),
+					sum(vjph.hour_22),
+					sum(vjph.hour_23)
+				]::int[24] AS hour_array,
+				min(distinct runtime_to_seconds(timing.runtime)) as min_runtime,
+				max(distinct runtime_to_seconds(timing.runtime)) as max_runtime
+			FROM jptiminglink timing
+			JOIN journeypattern_service_section section USING (jpsection_id)
+			JOIN mv_vehiclejourney_per_hour vjph USING (journeypattern_id)
+			LEFT JOIN journeypattern_service jp_service USING (journeypattern_id)
+			JOIN mask_to_weekday weekday ON weekday.mask & vjph.days_mask > 0
+			GROUP BY
+				timing.from_stoppoint,
+				timing.to_stoppoint,
+				jp_service.service_id,
+				weekday.weekday
+		),
+		stops_and_frequency AS (
+			
 			SELECT
-			mv_link_frequency3_%(shard)s.*
-			FROM mv_link_frequency3_%(shard)s
-			""" % dict(shard=shard)
-			for shard in SHARDS))
+				from_stoppoint,
+				to_stoppoint,
+				weekday,
+
+				ARRAY [
+					sum(hour_array[1]),
+					sum(hour_array[2]),
+					sum(hour_array[3]),
+					sum(hour_array[4]),
+					sum(hour_array[5]),
+					sum(hour_array[6]),
+					sum(hour_array[7]),
+					sum(hour_array[8]),
+					sum(hour_array[9]),
+					sum(hour_array[10]),
+					sum(hour_array[11]),
+					sum(hour_array[12]),
+					sum(hour_array[13]),
+					sum(hour_array[14]),
+					sum(hour_array[15]),
+					sum(hour_array[16]),
+					sum(hour_array[17]),
+					sum(hour_array[18]),
+					sum(hour_array[19]),
+					sum(hour_array[20]),
+					sum(hour_array[21]),
+					sum(hour_array[22]),
+					sum(hour_array[23]),
+					sum(hour_array[24])
+				] hour_array_total,
+
+				ARRAY [
+					max(hour_array[1]),
+					max(hour_array[2]),
+					max(hour_array[3]),
+					max(hour_array[4]),
+					max(hour_array[5]),
+					max(hour_array[6]),
+					max(hour_array[7]),
+					max(hour_array[8]),
+					max(hour_array[9]),
+					max(hour_array[10]),
+					max(hour_array[11]),
+					max(hour_array[12]),
+					max(hour_array[13]),
+					max(hour_array[14]),
+					max(hour_array[15]),
+					max(hour_array[16]),
+					max(hour_array[17]),
+					max(hour_array[18]),
+					max(hour_array[19]),
+					max(hour_array[20]),
+					max(hour_array[21]),
+					max(hour_array[22]),
+					max(hour_array[23]),
+					max(hour_array[24])
+				] hour_array_best_service,
+
+				array_agg(DISTINCT service_id) AS service_ids,
+				min(min_runtime) AS min_runtime,
+				max(max_runtime) AS max_runtime
+
+			FROM stops_and_frequency_per_line
+			GROUP BY
+				from_stoppoint,
+				to_stoppoint,
+				weekday
+		)
+		SELECT
+			-- a line segment allows you to draw directly from a
+			-- query on this table, which is a massive speed improvement
+			lseg(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS line_segment,
+
+			-- ... but you can only (easily) have a gist index on a box!
+			box(point(from_point.latitude::double precision, from_point.longitude::double precision), point(to_point.latitude::double precision, to_point.longitude::double precision)) AS lseg_bbox,
+
+			stops_and_frequency.from_stoppoint,
+			stops_and_frequency.to_stoppoint,
+			stops_and_frequency.weekday,
+
+			stops_and_frequency.hour_array_total,
+			stops_and_frequency.hour_array_best_service,
+			stops_and_frequency.service_ids,
+			stops_and_frequency.min_runtime,
+			stops_and_frequency.max_runtime
+
+		FROM stops_and_frequency
+		JOIN naptan from_point ON stops_and_frequency.from_stoppoint = from_point.atcocode_id
+		JOIN naptan to_point ON stops_and_frequency.to_stoppoint = to_point.atcocode_id
+
+	WITH NO DATA;
+	""")
+	cur.execute("""
+		CREATE INDEX idx_mv_link_frequency3
+		ON mv_link_frequency3
+		USING gist(lseg_bbox);
+	""")
+
 
 def drop_mv_link_frequency3(cur):
-	for shard in SHARDS:
-		cur.execute("""
-			DROP MATERIALIZED VIEW mv_link_frequency3_""" + shard + """
-			""")
 	cur.execute("""
-		DROP VIEW mv_link_frequency3
+		DROP MATERIALIZED VIEW mv_link_frequency3
 		""")
 	cur.execute("""
 		DROP TABLE mask_to_weekday
@@ -554,10 +528,9 @@ def drop_mv_link_frequency3(cur):
 		""")
 
 def refresh_mv_link_frequency3(cur):
-	for shard in SHARDS:
-		cur.execute("""
-			REFRESH MATERIALIZED VIEW mv_link_frequency3_""" + shard + """
-			""")
+	cur.execute("""
+		REFRESH MATERIALIZED VIEW mv_link_frequency3
+		""")
 
 def _interned(tablename, conn, source_id, longname):
 	with conn.cursor() as cur:
