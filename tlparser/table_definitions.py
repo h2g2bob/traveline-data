@@ -235,8 +235,30 @@ def create_materialized_views(conn):
 		logging.info("Defining mv_vehiclejourney_per_hour...")
 		cur.execute("""
 			CREATE MATERIALIZED VIEW mv_vehiclejourney_per_hour AS
+			WITH vehiclejourney_fix_jpid AS (
+				SELECT
+					vj.source_id,
+					vj.vjcode_id,
+					vj.other_vjcode_id,
+					coalesce(vj.journeypattern_id, other.journeypattern_id) AS journeypattern_id,
+					vj.line_id,
+					vj.days_mask,
+					vj.deptime_seconds
+				FROM vehiclejourney vj
+				LEFT JOIN vehiclejourney other ON vj.other_vjcode_id = other.vjcode_id
+			),
+			vehiclejourney_dedup AS (
+				-- So, um, some buses leave at exactly the same time, and go on
+				-- exactly the same route?
+				-- But don't worry, someone adds DaysOfNonOperation each time,
+				-- a couple of days before departure.
+				-- I wouldn't trust that, so let's get rid of the obvious nonsense.
+
+				SELECT DISTINCT source_id, vjcode_id, other_vjcode_id, journeypattern_id, line_id, days_mask, deptime_seconds
+				FROM vehiclejourney_fix_jpid
+			)
 			SELECT
-				coalesce(vj.journeypattern_id, other.journeypattern_id) AS journeypattern_id,
+				vj.journeypattern_id,
 				vj.line_id,
 				vj.days_mask,
 				sum(case when vj.deptime_seconds / 3600 = 0 then 1 else 0 end)::int as hour_0,
@@ -263,8 +285,7 @@ def create_materialized_views(conn):
 				sum(case when vj.deptime_seconds / 3600 = 21 then 1 else 0 end)::int as hour_21,
 				sum(case when vj.deptime_seconds / 3600 = 22 then 1 else 0 end)::int as hour_22,
 				sum(case when vj.deptime_seconds / 3600 = 23 then 1 else 0 end)::int as hour_23
-			FROM vehiclejourney vj
-			LEFT JOIN vehiclejourney other ON vj.other_vjcode_id = other.vjcode_id
+			FROM vehiclejourney_dedup vj
 			GROUP BY 1,2,3
 			WITH NO DATA;
 		""")
