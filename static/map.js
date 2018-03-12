@@ -47,12 +47,6 @@ window.addEventListener("load", function () {
 		}
 	});
 
-	if (window.location.hash) {
-		var postcode_from_url = window.location.hash.substring(1);
-		$("#postcode").val(postcode_from_url);
-		postcode_box_change(postcode_from_url);
-	}
-
 	var show_frequency_drilldown = function () {
 		$("#frequency-human").hide();
 		$("#frequency-drilldown").show();
@@ -383,10 +377,11 @@ window.addEventListener("load", function () {
 		}
 	};
 
+	mymap.setView([54.00366, -2.547855], 6);
+
 	mymap.on('moveend', on_change);
 	mymap.on('viewreset', on_change);
 	mymap.on('load', on_change);
-	mymap.setView([51.539691790887, 0.71413324224317], 15);
 
 	$("#freq-time").on("change", on_change);
 	$("#freq-weekday").on("change", on_change);
@@ -394,4 +389,9 @@ window.addEventListener("load", function () {
 	$("#oppy-speed").on("change", on_change);
 	$("#oppy-distance").on("change", on_change);
 
+	if (window.location.hash) {
+		var postcode_from_url = window.location.hash.substring(1);
+		$("#postcode").val(postcode_from_url);
+		postcode_box_change(postcode_from_url);
+	}
 });
