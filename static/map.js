@@ -20,6 +20,18 @@ window.addEventListener("load", function () {
 		}
 	});
 
+	var postcode_box_change = function (postcode) {
+		$.ajax({
+			"method": "GET",
+			"url": "/postcode/location/" + postcode,
+			"dataType": "json"
+		}).done(function (body) {
+			if (body["lat"] !== undefined) {
+				mymap.setView([body["lat"], body["lng"]], 15);
+			}
+		});
+	}
+
 	$("#postcode").autocomplete({
 		source: function(request, response) {
 			$.ajax({
@@ -31,18 +43,15 @@ window.addEventListener("load", function () {
 			});
 		},
 		select: function(event, ui) {
-			$.ajax({
-				"method": "GET",
-				"url": "/postcode/location/" + ui.item.label,
-				"dataType": "json"
-			}).done(function (body) {
-				if (body["lat"] !== undefined) {
-					mymap.setView([body["lat"], body["lng"]], 15);
-				}
-			});
+			postcode_box_change(ui.item.label);
 		}
 	});
 
+	if (window.location.hash) {
+		var postcode_from_url = window.location.hash.substring(1);
+		$("#postcode").val(postcode_from_url);
+		postcode_box_change(postcode_from_url);
+	}
 
 	var show_frequency_drilldown = function () {
 		$("#frequency-human").hide();
