@@ -306,15 +306,15 @@ window.addEventListener("load", function () {
 		var time_saved_cost_per_year = time_saved_cost * working_days_per_year;
 
 		if (time_saved_cost_per_year < 10000) {
-			return "#ddffee"
+			return "#ffddee"
 		} else if (time_saved_cost_per_year < 50000) {
-			return "#99ffcc"
+			return "#ffccdd"
 		} else if (time_saved_cost_per_year < 100000) {
-			return "#55ffaa"
+			return "#ff77bb"
 		} else if (time_saved_cost_per_year < 150000) {
-			return "#33ff66"
+			return "#ff4499"
 		} else {
-			return "#00ff00"
+			return "#ff0077"
 		}
 	}
 
