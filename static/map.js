@@ -354,7 +354,7 @@ window.addEventListener("load", function () {
 	};
 
 	var on_change = function() {
-		if (mymap.getZoom() <= 10) {
+		if (mymap.getZoom() <= 11) {
 			/* most web browsers will cry if you do this */
 			return;
 		}
