@@ -30,6 +30,23 @@
 	z-index: 1100;
 }
 
+#controls div.postcode-control {
+	padding: 0.3em;
+}
+
+#controls div.postcode-control #postcode {
+	font-size: 140%;
+	width: 70%;
+	padding: 0.3em;
+}
+
+#controls div.postcode-control label {
+	width: 30%;
+	display: inline-block;
+	overflow: hidden;
+}
+
+
 #controls .key {
 	margin-top: 0.2em;
 }

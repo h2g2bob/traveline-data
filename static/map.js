@@ -33,6 +33,7 @@ window.addEventListener("load", function () {
 	}
 
 	$("#postcode").autocomplete({
+		minLength: 0,
 		source: function(request, response) {
 			$.ajax({
 				"method": "GET",
@@ -393,5 +394,8 @@ window.addEventListener("load", function () {
 		var postcode_from_url = window.location.hash.substring(1);
 		$("#postcode").val(postcode_from_url);
 		postcode_box_change(postcode_from_url);
+	} else {
+		/* force some random search suggestions to appear */
+		$("#postcode").autocomplete("search", "");
 	}
 });

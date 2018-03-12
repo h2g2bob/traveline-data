@@ -62,6 +62,17 @@ def postcode_location(code):
 def postcode_complete():
 	prefix = request.args.get("prefix", "")
 	prefix = prefix.upper().replace(" ", "")
+	if prefix == "":
+		return jsonify({"results": [
+			"DE12FD",  # Derby bus station
+			"EX1",  # Exeter
+			"L18JX",  # Liverpool bus station
+			"NR1",  # Norwich
+			"OX41AA",  # Oxford
+			"SS1",  # Southend-on-sea
+			"W1",  # Central London
+			]})
+
 	with database() as conn:
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
