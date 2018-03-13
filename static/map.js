@@ -316,9 +316,9 @@ window.addEventListener("load", function () {
 		} else if (time_saved_cost_per_year < 100000) {
 			return "#ff77bb"
 		} else if (time_saved_cost_per_year < 150000) {
-			return "#ff4499"
+			return "#ee4499"
 		} else {
-			return "#ff0077"
+			return "#cc0077"
 		}
 	}
 
