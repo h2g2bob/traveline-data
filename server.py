@@ -77,12 +77,21 @@ def postcode_complete():
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				select postcode
-				from postcodes
-				where postcode like %s || '%%'
+				with data as (
+					select
+						postcode,
+						rank() over (partition by substring(postcode, 1, length(%(prefix)s)+1) order by postcode) as ranking
+					from postcodes
+					where postcode like %(prefix)s || '%%'
+					order by postcode
+				)
+				select
+					postcode
+				from data
+				where ranking = 1
 				order by postcode
 				limit 10;
-				""", (prefix,))
+				""", {'prefix': prefix})
 			data = [postcode for [postcode] in cur.fetchall()]
 			return jsonify({"results": data})
 
