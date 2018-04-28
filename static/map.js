@@ -219,15 +219,15 @@ window.addEventListener("load", function () {
 		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
 
 		if (speed > 12) {
-			return "#ddccbb"
+			return "#eeddcc"
 		} else if (speed > 8) {
-			return "#cc9988"
+			return "#ddc6aa"
 		} else if (speed > 4) {
-			return "#aa6666"
+			return "#bb8866"
 		} else if (speed > 2) {
-			return "#884433"
+			return "#774411"
 		} else {
-			return "#663300"
+			return "#441100"
 		}
 	}
 
