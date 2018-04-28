@@ -220,11 +220,11 @@ window.addEventListener("load", function () {
 
 		if (speed > 12) {
 			return "#eeddcc"
-		} else if (speed > 8) {
+		} else if (speed > 9) {
 			return "#ddc6aa"
-		} else if (speed > 4) {
+		} else if (speed > 6) {
 			return "#bb8866"
-		} else if (speed > 2) {
+		} else if (speed > 3) {
 			return "#774411"
 		} else {
 			return "#441100"
