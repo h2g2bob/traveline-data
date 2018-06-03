@@ -23,7 +23,7 @@ window.addEventListener("load", function () {
 	var postcode_box_change = function (postcode) {
 		$.ajax({
 			"method": "GET",
-			"url": "/postcode/location/" + postcode,
+			"url": "https://buildmorebuslanes.com/postcode/location/" + postcode,
 			"dataType": "json"
 		}).done(function (body) {
 			if (body["lat"] !== undefined) {
@@ -37,7 +37,7 @@ window.addEventListener("load", function () {
 		source: function(request, response) {
 			$.ajax({
 				"method": "GET",
-				"url": "/postcode/autocomplete/?prefix=" + request.term,
+				"url": "https://buildmorebuslanes.com/postcode/autocomplete/?prefix=" + request.term,
 				"dataType": "json"
 			}).done(function (body) {
 				response(body["results"]);
@@ -85,7 +85,7 @@ window.addEventListener("load", function () {
 
 		$.ajax({
 			"method": "GET",
-			"url": "/geojson/v3/links/",
+			"url": "https://buildmorebuslanes.com/geojson/v3/links/",
 			"datatype": "json",
 			"data": {
 				"minlat": bound.getSouth(),
