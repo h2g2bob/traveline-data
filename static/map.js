@@ -85,6 +85,12 @@ window.addEventListener("load", function () {
 		show_opportunities_drilldown();
 	}
 
+	var show_value_drilldown = function () {
+		$("#value-human").hide();
+		$("#value-drilldown").show();
+		$("#display").accordion("refresh");
+	}
+	$("#show-value-drilldown").on("click", show_value_drilldown);
 
 	/* data */
 
@@ -402,6 +408,121 @@ window.addEventListener("load", function () {
 		});
 	};
 
+	function color_value(frequencies, journey_time, geometry, target_speed_mph, cost_m_per_km) {
+		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
+			/* no buses all day! */
+			return undefined;
+		}
+
+		if (journey_time === undefined) {
+			return undefined;
+		} else if (journey_time < 1) {
+			return undefined;
+		}
+
+		/* key assumptions */
+		var cost_of_scheme_per_km = cost_m_per_km * 1000000;
+
+		var time_between_stops = journey_time;
+		var busses_per_weekday = frequencies.reduce(function(x, a) { return a+x; }, 0);
+		var distance_between_stops = distance_in_km(
+			geometry.coordinates[0][1],
+			geometry.coordinates[0][0],
+			geometry.coordinates[1][1],
+			geometry.coordinates[1][0]);
+
+		var mph_per_kmph = 0.6213712;
+		var target_speed_kph = target_speed_mph / mph_per_kmph;
+		var actual_speed_kps = distance_between_stops / time_between_stops;
+		var actual_speed_kph = actual_speed_kps * 3600;
+
+		/* imagine our scheme is for 1km of road, but this doesn't matter as we'll divide by this later */
+		var one_km = 1.0;
+
+		/* time saved if bus runs at target speed for 1km */
+		var time_to_go_1km = (one_km / actual_speed_kph);
+		var target_time_to_go_1km = (one_km / target_speed_kph);
+		var hours_saved_per_bus = time_to_go_1km - target_time_to_go_1km;
+
+		/*
+		Value of driver and passengers, based on average occupancy.
+		5.87*12.2 + 16.08
+		= £87.69
+		https://www.gov.uk/guidance/transport-analysis-guidance-webtag
+		(A1.3.5 actually gives this value without all the maths)
+		*/
+		var value_of_time_per_bus_hour = 87.69;
+
+		/*
+		6.94 non fuel operating costs (A1.3.13)
+		*/
+		var non_fuel_operating_costs_per_bus_hour = 6.94;
+
+		var value_per_bus_hour = value_of_time_per_bus_hour + non_fuel_operating_costs_per_bus_hour;
+		var value_per_bus = value_per_bus_hour * hours_saved_per_bus;
+
+		var busses_per_year = busses_per_weekday * 5 * 52;
+		var value_per_year = value_per_bus * busses_per_year;
+
+		/*
+		https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34
+		>>> discounting = [0.035]*30 + [0.03]*30
+		>>> value_for_year = [1.0]
+		>>> for year_discount in discounting:
+		...     value_for_year.append(value_for_year[-1] * (1.0 - year_discount))
+		... 
+		>>> sum(value_for_year[:60])
+		*/
+		var multi_year_multiplier = 25.616;
+		var total_value_of_scheme = value_per_year * multi_year_multiplier;
+
+		var cost_of_scheme = one_km * cost_of_scheme_per_km;
+		var vfm_ratio = total_value_of_scheme / cost_of_scheme;
+
+		if (vfm_ratio < 1.0) {
+			return "#ccccff"
+		} else if (vfm_ratio < 2.0) {
+			return "#9999ff"
+		} else if (vfm_ratio < 4.0) {
+			return "#ff9999"
+		} else if (vfm_ratio < 10.0) {
+			return "#cc4444"
+		} else {
+			return "#660000"
+		}
+	}
+	var on_change_value = function() {
+		var DOW = 'M';
+		var target_speed_mph = parseFloat($("#value-speed").val());
+		var cost_m_per_km = parseFloat($("#value-cost").val());
+		fetch_and_refresh_display(DOW, {
+			style: function (feature) {
+				var color = color_value(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry,
+					target_speed_mph,
+					cost_m_per_km);
+				return {
+					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+					"color": color
+				};
+			},
+			filter: function (feature, layer) {
+				if (feature.properties.length > 0.2) {
+					return false;  /* hide obviously flase long paths */
+				}
+				var color = color_value(
+					feature.properties.frequencies[DOW].all_services,
+					feature.properties.runtime.max,
+					feature.geometry,
+					target_speed_mph,
+					cost_m_per_km);
+				return color !== undefined;
+			}
+		});
+	};
+
 	var on_change = function() {
 		if (mymap.getZoom() <= 11) {
 			/* most web browsers will cry if you do this */
@@ -423,6 +544,8 @@ window.addEventListener("load", function () {
 			on_change_congestion();
 		} else if (active_tab == 3) {
 			on_change_opportunities();
+		} else if (active_tab == 4) {
+			on_change_value();
 		} else {
 			/* no controls section selected? */
 		}
@@ -439,6 +562,8 @@ window.addEventListener("load", function () {
 	$("input[name='freq-services']").on("change", on_change);
 	$("#oppy-speed").on("change", on_change);
 	$("#oppy-distance").on("change", on_change);
+	$("#value-speed").on("change", on_change);
+	$("#value-cost").on("change", on_change);
 
 	if (window.location.hash) {
 		var postcode_from_url = window.location.hash.substring(1);

@@ -175,65 +175,45 @@
 					</span><span class="line" style="border-bottom-color: #cc0077">£150k
 					</span>	
 				</div>
-				<div id="opportunities-mway">
-					Using the same assumptions as <a href="https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34">motorway expansion</a>, the value of this is:
+			</div>
+			<h3>Value for Money</h3>
+			<div>
+				<div id="value-human">
+					<div>
+						Value for money estimate.
+					</div>
+					<div>
+						<span id="show-value-drilldown" class="clickable option-icon">Change assumptions</span>
+					</div>
+				</div>
+				<div id="value-drilldown" class="drilldown">
+					<div>Value with discounting over 60 years (<a href="https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34">M4 J16</a>)</div>
+					<div>Using occupancy, value of time (VOT) and non-fuel costs from <a href="https://www.gov.uk/guidance/transport-analysis-guidance-webtag">WebTAG</a></div>
+					<div>Ongoing maintainance ignored</div>
+					<div>Impact on other traffic ignored (this might be positive or negative)</div>
+					<div>Assuming busses run at
+						<select id="value-speed">
+							<option value="5">5mph</option>
+							<option value="10" selected>10mph</option>
+							<option value="20">20mph</option>
+						</select>
+					</div>
+					<div>Assuming construction costs of
+						<select id="value-cost" class="half">
+							<option value="1.43" selected>£1.43m/km Odd Down, Bath</option><!-- 0.916 / 0.64km, https://www.rac.co.uk/drive/news/motoring-news/bus-lane-cost-1300-for-each-yard/ -->
+							<option value="4.04">£4.04m/km Cambridgeshire Guided Busway</option><!-- 181m / 25k, https://en.wikipedia.org/wiki/Cambridgeshire_Guided_Busway -->
+							<option value="4.23">£4.23m/km Bristol MetroBus</option><!-- 216m / 50k, http://www.bbc.co.uk/news/uk-england-bristol-40492236 -->
+							<option value="5.22">£5.22m/km London Emankment cycle route</option><!-- 47m / 9.01km, https://www.standard.co.uk/news/transport/cab-drivers-launch-court-challenge-to-cycle-superhighway-a3155681.html, https://www.standard.co.uk/news/transport/plans-for-west-londons-first-cycle-superhighway-unveiled-a3640006.html -->
+						</select>
+					</div>
 				</div>
 				<div class="key">
-<!--
-
-Based on the value for money calculations provided for the M4 J16 expansion plans, we should consider the value over multiple years
-
-https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34
-
->>> discounting = [0.035]*30 + [0.03]*30
->>> value_for_year = [1.0]
->>> for year_discount in discounting:
-...     value_for_year.append(value_for_year[-1] * (1.0 - year_discount))
-... 
->>> sum(value_for_year[:60])
-25.61634239752727
-
-
-
-Value of time calculation:
-Value of time (VOT) for commuting is £10.92 in 2018 prices
-(£4.98 for non working non commuting, and anything from £10 to £30 for working people)
-A1.3.2 from https://www.gov.uk/guidance/transport-analysis-guidance-webtag
-
-
-Occupancy calculation:
-12.2 passengers + 1 driver
-A1.3.3 from https://www.gov.uk/guidance/transport-analysis-guidance-webtag
-
-
-What type of trip..?
-
-A1.3.4           A1.3.2
-in work: 1.5    (x10.99)
-commuting: 13.5 (x10.92)
-other: 85.0     (x 4.98)   ... average £5.87
-(plus driver:     16.08)
-
-With occupancy, value of 1 hour of bus is:
-5.87*12.2 + 16.08
-= £87.69
-(A1.3.5 actually gives this value without all the maths)
-
-+6.94 non fuel operating costs (A1.3.13
-
-Every bus hour saved is about:
-£94.63
-
-time saved per day (hours) * value of a bus hour * days per year * lifetime of change
-time saved per day (hours) * 94.63               * 365.25        * 25.61
-time saved per day (hours) * £885,174
-
--->
-					<span class="line" style="border-bottom-color: #ffddee">&nbsp;
-					</span><span class="line" style="border-bottom-color: #ffccdd">£0.25m
-					</span><span class="line" style="border-bottom-color: #ff77bb">£1.25m
-					</span><span class="line" style="border-bottom-color: #ee4499">£2.50m
-					</span><span class="line" style="border-bottom-color: #cc0077">£3.75m
+					<!-- High / V. High categories from https://assets.publishing.service.gov.uk/government/uploads/system/uploads/attachment_data/file/630704/value-for-money-framework.pdf#page=25 -->
+					<span class="line" style="border-bottom-color: #ccccff">&nbsp;
+					</span><span class="line" style="border-bottom-color: #9999ff">(Low)<br />1x
+					</span><span class="line" style="border-bottom-color: #ff9999">(High, eg: <a href="http://www.southeastlep.com/images/uploads/resources/M11_J8_Business_Case_.pdf#page=18">M11 J8</a>)<br />2x
+					</span><span class="line" style="border-bottom-color: #cc4444">(V High, eg: <a href="http://www.southeastlep.com/images/uploads/resources/A127KentElms_Business_Case.pdf#page=23">Kent Elms</a>)<br />4x
+					</span><span class="line" style="border-bottom-color: #660000">(eg: <a href="https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34">M4 J16</a>)<br />10x
 					</span>	
 				</div>
 			</div>
