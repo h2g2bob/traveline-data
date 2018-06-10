@@ -187,8 +187,9 @@
 					</div>
 				</div>
 				<div id="value-drilldown" class="drilldown">
-					<div>Value with discounting over 60 years (<a href="https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34">M4 J16</a>), ignoring ongoing maintainance costs</div>
-					<div>Using occupancy, value of time (VOT) and non-fuel costs from <a href="https://www.gov.uk/guidance/transport-analysis-guidance-webtag">WebTAG</a>, ignoring any impact on other traffic</div>
+					<div>Includes occupancy, value of time and non-fuel costs from <a href="https://www.gov.uk/guidance/transport-analysis-guidance-webtag">WebTAG</a>. The impact on other traffic is ignored.</div>
+					<div>Value with discounting over 60 years (same as <a href="https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34">M4 J16</a>), ignoring ongoing maintainance costs.</div>
+					<div>The wider economic impact is ignored.</div>
 					<div>Assuming busses run at
 						<select id="value-speed" class="half">
 							<option value="5">5mph</option>
@@ -198,8 +199,9 @@
 					</div>
 					<div>Assuming construction costs of
 						<select id="value-cost" class="half">
-							<option value="999.9">Adjust bus stop spacings to avoid acceleration/deceleration</option><!-- Cost is a guess. -->
-							<option value="999.9">Purchase busses with all-door boarding and pay-before-boarding</option><!-- Cost is a guess. Reduces dwell time. Doesn't really make sense for short-segment -->
+							<option value="999.9">Adjust bus stop spacings to avoid acceleration/deceleration</option><!-- Reduces travel times. -->
+							<option value="999.9">Require pay-before-boarding, or contactless with flat-rate fare</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
+							<option value="999.9">Give grants for busses with all-door boarding</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
 							<option value="1.43" selected>£1.43m/km Bus lane at Odd Down, Bath</option><!-- 0.916 / 0.64km, https://www.rac.co.uk/drive/news/motoring-news/bus-lane-cost-1300-for-each-yard/ -->
 							<option value="4.04">£4.04m/km Cambridgeshire Guided Busway</option><!-- 181m / 25k, https://en.wikipedia.org/wiki/Cambridgeshire_Guided_Busway -->
 							<option value="4.23">£4.23m/km Bristol MetroBus</option><!-- 216m / 50k, http://www.bbc.co.uk/news/uk-england-bristol-40492236 -->
