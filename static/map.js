@@ -481,11 +481,11 @@ window.addEventListener("load", function () {
 
 		if (vfm_ratio < 1.0) {
 			return "#ccccff"
-		} else if (vfm_ratio < 2.0) {
+		} else if (vfm_ratio < 1.5) {
 			return "#9999ff"
-		} else if (vfm_ratio < 4.0) {
+		} else if (vfm_ratio < 2.0) {
 			return "#ff9999"
-		} else if (vfm_ratio < 10.0) {
+		} else if (vfm_ratio < 4.0) {
 			return "#cc4444"
 		} else {
 			return "#660000"
