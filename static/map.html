@@ -200,10 +200,47 @@
 					</div>
 					<div>Assuming construction costs of
 						<select id="value-cost" class="half">
-							<option value="999.9">Adjust bus stop spacings to avoid acceleration/deceleration</option><!-- Reduces travel times. -->
+							<option value="999.9">Adjust bus stop spacings to avoid acceleration/deceleration</option><!--
+								Reduces travel times.
+
+								A bus can accelerate at about 0.7m/s2 from https://www.reddit.com/r/transit/comments/3zw71y/whats_a_reasonable_rate_of_acceleration_for_a/
+								Assume a final speed of 10mph (4.5m/s)
+								a = dv/dt => 0.7=(4.5-0)/dt
+								t = 4.5/0.7 = 6.42 seconds
+
+								On average the bus would be travelling at half-speed during this acceleration (divide by 2)
+								But we also need to calculate deceleration for each stop (multiply by 2)
+
+								tl;dr: removing a bus stop saves a constant 6.4 seconds
+
+								What should the bus stop spacing be? 400m http://humantransit.org/2010/11/san-francisco-a-rational-stop-spacing-plan.html
+
+								We could imagine adjusting the bus stop spacing to be every 400m, by:
+								- removing all the bus stops (minus 6.4 seconds per segment)
+								- adding 6.4 seconds for each 400m travelled
+								-->
 							<option value="999.9">Require pay-before-boarding, or contactless with flat-rate fare</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
-							<option value="999.9">Give grants for busses with all-door boarding</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
-							<option value="1.43" selected>£1.43m/km Bus lane at Odd Down, Bath</option><!-- 0.916 / 0.64km, https://www.rac.co.uk/drive/news/motoring-news/bus-lane-cost-1300-for-each-yard/ -->
+							<option value="999.9">Give grants for busses with all-door boarding</option><!--
+								Reduces dwell time. Only makes sense for whole-network analysis.
+
+								Benefit:
+								At busy stops, saves 1.5 seconds per passenger - https://www.sfmta.com/sites/default/files/agendaitems/2014/12-2-14%20Item%2014%20All%20Door%20Boarding%20Report.pdf#page=3
+								If I assume 10 people on the bus, each travelling for 10 stops, then we save 1.5 seconds per stop
+								value = number of busses * value of time per bus-second
+
+								Cost:
+								Cost per bus is £130,000 https://www.whatdotheyknow.com/request/bus_costs_and_buses_6
+								Probably lasts 30 years, running 12 hours per day (£0.00027 / second)
+								cost = number of busses * time in segment * cost_per_second
+								-->
+							<option value="1.43" selected>£1.43m/km Bus lane at Odd Down, Bath</option><!--
+								0.916 / 0.64km, https://www.rac.co.uk/drive/news/motoring-news/bus-lane-cost-1300-for-each-yard/
+								Old: 2 traffic lanes Westbound (no parking), 1 traffic lane Eastbound
+								New: 1 traffic lane in each direction, plus full-time Westbound bus lane
+								https://www.google.com/maps/@51.3594051,-2.3739678,3a,75y,64.2h,82.67t/data=!3m7!1e1!3m5!1scZdVi1fX1LMqlsHy850fBQ!2e0!5s20081001T000000!7i13312!8i6656?hl=en
+								On Westbound A367 between B3110 (junction) and A3042 (roundabout)
+								Speed over the roundabout (A367/A3042) is 16.1 Eastbound or 16.9 mph Westbound
+								-->
 							<option value="4.04">£4.04m/km Cambridgeshire Guided Busway</option><!-- 181m / 25k, https://en.wikipedia.org/wiki/Cambridgeshire_Guided_Busway -->
 							<option value="4.23">£4.23m/km Bristol MetroBus</option><!-- 216m / 50k, http://www.bbc.co.uk/news/uk-england-bristol-40492236 -->
 							<option value="5.22">£5.22m/km London Emankment road-layout changes (cycle lanes)</option><!-- 47m / 9.01km, https://www.standard.co.uk/news/transport/cab-drivers-launch-court-challenge-to-cycle-superhighway-a3155681.html, https://www.standard.co.uk/news/transport/plans-for-west-londons-first-cycle-superhighway-unveiled-a3640006.html -->
