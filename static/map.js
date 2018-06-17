@@ -242,6 +242,12 @@ window.addEventListener("load", function () {
 					feature.properties.speed,
 					feature.geometry);
 				return color !== undefined;
+			},
+			onEachFeature: function(feature, layer) {
+				var speed = feature.properties.speed;
+				if (speed !== null) {
+					layer.bindPopup(speed.mph.toFixed(1) + " mph (" + speed.kph.toFixed(1) + " kph)");
+				}
 			}
 		});
 	};
