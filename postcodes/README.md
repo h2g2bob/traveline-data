@@ -25,6 +25,7 @@ And:
 
 Also want to allow searching for "W1", not just "W11AA", so fake up some entries to make that easier:
 ```
+CREATE MATERIALIZED VIEW postcodes_short AS
 with add_short_code as (
 	select
 		(regexp_matches(postcode, '^([A-Z]+[0-9]+)[0-9][A-Z][A-Z]$'))[1] as short,
@@ -47,6 +48,10 @@ best_rank as (
 	from ranked_codes
 	where rank = 1
 )
-insert into postcodes (postcode, lat, lng)
-select short, lat, lng from best_rank;
+select short AS postcode, lat, lng from best_rank;
+```
+
+And:
+```
+create index idx_postcodes_short on postcodes_short using btree (postcode);
 ```

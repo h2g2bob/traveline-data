@@ -56,10 +56,14 @@ def postcode_location(code):
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				select lat, lng
-				from postcodes
-				where postcode = %s;
-				""", (code,))
+				SELECT lat, lng
+					FROM postcodes_short
+					WHERE postcode = %(postcode)s
+				UNION ALL
+				SELECT lat, lng
+					FROM postcodes
+					WHERE postcode = %(postcode)s
+				""", {"postcode": code})
 			[[lat, lng]] = cur.fetchall()
 			return jsonify({"lat": lat, "lng": lng})
 
@@ -82,22 +86,17 @@ def postcode_complete():
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				with data as (
-					select
-						postcode,
-						rank() over (partition by substring(postcode, 1, length(%(prefix)s)+1) order by postcode) as ranking
-					from postcodes
-					where postcode like %(prefix)s || '%%'
-					order by postcode
-				)
-				select
-					postcode
-				from data
-				where ranking = 1
-				order by postcode
-				limit 10;
+				SELECT true as is_short, postcode
+					FROM postcodes_short
+					WHERE postcode LIKE %(prefix)s || '%%'
+				UNION ALL
+				SELECT false as is_short, postcode
+					FROM postcodes
+					WHERE postcode LIKE %(prefix)s || '%%'
+				ORDER BY is_short desc, postcode
+				LIMIT 10;
 				""", {'prefix': prefix})
-			data = [postcode for [postcode] in cur.fetchall()]
+			data = [postcode for [_short, postcode] in cur.fetchall()]
 			return jsonify({"results": data})
 
 def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday, length, min_runtime, max_runtime, all_services_array, one_service_array):
