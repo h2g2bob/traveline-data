@@ -86,13 +86,21 @@ def postcode_complete():
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				SELECT true as is_short, postcode
-					FROM postcodes_short
-					WHERE postcode LIKE %(prefix)s || '%%'
+				SELECT * FROM (
+					SELECT true as is_short, postcode
+						FROM postcodes_short
+						WHERE postcode LIKE %(prefix)s || '%%'
+						ORDER BY postcode
+						LIMIT 10
+					) AS short_codes
 				UNION ALL
-				SELECT false as is_short, postcode
-					FROM postcodes
-					WHERE postcode LIKE %(prefix)s || '%%'
+				SELECT * FROM (
+					SELECT false as is_short, postcode
+						FROM postcodes
+						WHERE postcode LIKE %(prefix)s || '%%'
+						ORDER BY postcode
+						LIMIT 10
+					) AS long_codes
 				ORDER BY is_short desc, postcode
 				LIMIT 10;
 				""", {'prefix': prefix})
