@@ -16,25 +16,30 @@ DEC2FLOAT = psycopg2.extensions.new_type(
 psycopg2.extensions.register_type(DEC2FLOAT)
 
 BASIC_INFO = {
-    "copyright": "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a>, <a href=\"https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan\">Naptan</a> and <a href=\"https://data.gov.uk/dataset/7dc36b99-9b5e-4475-91ab-ab16e1cabb6d/nhs-postcode-directory-latest-centroids\">NHS Postcode Directory</a>. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
+    "copyright":
+        "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a>, <a href=\"https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan\">Naptan</a> and <a href=\"https://data.gov.uk/dataset/7dc36b99-9b5e-4475-91ab-ab16e1cabb6d/nhs-postcode-directory-latest-centroids\">NHS Postcode Directory</a>. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
 }
 
 
 def database():
     return psycopg2.connect("dbname=travelinedata")
 
+
 def statement_timeout(conn, seconds):
-    millis = int(seconds*1000)
+    millis = int(seconds * 1000)
     with conn.cursor() as cur:
         cur.execute("SET statement_timeout TO %s;", (millis,))
+
 
 def json_response(data):
     data.update(BASIC_INFO)
     return jsonify(data)
 
+
 @app.route('/')
 def index():
     return json_response({})
+
 
 @app.route('/postcode/location/<code>/')
 def postcode_location(code):
@@ -54,6 +59,7 @@ def postcode_location(code):
             [[lat, lng]] = cur.fetchall()
             return json_response({"lat": lat, "lng": lng})
 
+
 @app.route('/postcode/autocomplete/')
 def postcode_complete():
     prefix = request.args.get("prefix", "")
@@ -67,7 +73,7 @@ def postcode_complete():
             "OX41AA",  # Oxford
             "SS1",  # Southend-on-sea
             "W1",  # Central London
-            ]})
+        ]})
 
     with database() as conn:
         statement_timeout(conn, 10)
@@ -94,7 +100,20 @@ def postcode_complete():
             data = [postcode for [_short, postcode] in cur.fetchall()]
             return json_response({"results": data})
 
-def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday, length, min_runtime, max_runtime, all_services_array, one_service_array):
+
+def _one_feature_v3(
+    from_id,
+     to_id,
+     from_lat,
+     from_lng,
+     to_lat,
+     to_lng,
+     weekday,
+     length,
+     min_runtime,
+     max_runtime,
+     all_services_array,
+     one_service_array):
     return {
         "type": "Feature",
         "geometry": {
@@ -102,23 +121,23 @@ def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday,
             "coordinates": [
                 [from_lng, from_lat],
                 [to_lng, to_lat],
-                ]
-            },
+            ]
+        },
         "properties": {
             "length": length,
             "frequencies": {
-                weekday : {
+                weekday: {
                     "single_service": one_service_array,
                     "all_services": all_services_array,
-                    },
                 },
+            },
             "runtime": {
                 "min": min_runtime,
                 "max": max_runtime,
-                }
-            },
+            }
+        },
         "id": 1
-        }
+    }
 
 
 @app.route('/geojson/v3/links/')
@@ -157,7 +176,7 @@ def geojson_frequency_v3():
                 from bus_per_hour_for_day;
 
                 """, dict(
-                    minlat=request.args.get('minlat'),
+                minlat=request.args.get('minlat'),
                     minlng=request.args.get('minlng'),
                     maxlat=request.args.get('maxlat'),
                     maxlng=request.args.get('maxlng'),
@@ -168,8 +187,8 @@ def geojson_frequency_v3():
                 "features": [
                     _one_feature_v3(*row)
                     for row in cur
-                    ]
-                })
+                ]
+            })
 
 
 if __name__ == '__main__':
