@@ -172,7 +172,7 @@ def geojson_frequency_v3():
                     maxlng=request.args.get('maxlng'),
                     weekday=request.args.get('weekday', 'M')))
 
-            return jsonify({
+            return json_response({
                 "type": "FeatureCollection",
                 "features": [
                     _one_feature_v3(*row)
