@@ -6,8 +6,6 @@ import logging
 from flask import Flask
 from flask import jsonify
 from flask import request
-from flask import send_from_directory
-from flask import send_file
 
 app = Flask(__name__, static_url_path='')
 
@@ -34,24 +32,13 @@ def statement_timeout(conn, seconds):
 	with conn.cursor() as cur:
 		cur.execute("SET statement_timeout TO %s;", (millis,))
 
-@app.route('/')
-def map_page():
-	response = make_response(send_file("static/map.html"))
-	response.headers.add('Link', '</static/map.js>;rel=preload')
-	response.headers.add('Link', '</static/map.css>;rel=preload')
-	return response
-
-@app.route('/map.js')
-def map_page_js():
-	return send_from_directory("static", "map.js")
-
 def json_response(data):
 	data.update(BASIC_INFO)
 	return jsonify(data)
 
-@app.route('/map.css')
-def map_page_css():
-	return send_from_directory("static", "map.css")
+@app.route('/')
+def index():
+	return json_response({})
 
 @app.route('/postcode/location/<code>/')
 def postcode_location(code):
