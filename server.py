@@ -2,17 +2,14 @@
 # encoding: utf8
 
 import psycopg2
-import json
 import logging
 from flask import Flask
 from flask import jsonify
-from flask import make_response
 from flask import request
 from flask import send_from_directory
 from flask import send_file
 
 app = Flask(__name__, static_url_path='')
-
 
 DEC2FLOAT = psycopg2.extensions.new_type(
     psycopg2.extensions.DECIMAL.values,
@@ -20,10 +17,13 @@ DEC2FLOAT = psycopg2.extensions.new_type(
     lambda value, curs: float(value) if value is not None else None)
 psycopg2.extensions.register_type(DEC2FLOAT)
 
-
 # Forbid requests for very large areas
 # We're really protected by statement_timeout, so this can be fairly relaxed
 AREA_TOO_LARGE=4.0
+
+BASIC_INFO = {
+	"copyright": "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a> and Naptan. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
+}
 
 
 def database():
@@ -45,6 +45,10 @@ def map_page():
 def map_page_js():
 	return send_from_directory("static", "map.js")
 
+def json_response(data):
+	data.update(BASIC_INFO)
+	return jsonify(data)
+
 @app.route('/map.css')
 def map_page_css():
 	return send_from_directory("static", "map.css")
@@ -65,14 +69,14 @@ def postcode_location(code):
 					WHERE postcode = %(postcode)s
 				""", {"postcode": code})
 			[[lat, lng]] = cur.fetchall()
-			return jsonify({"lat": lat, "lng": lng})
+			return json_response({"lat": lat, "lng": lng})
 
 @app.route('/postcode/autocomplete/')
 def postcode_complete():
 	prefix = request.args.get("prefix", "")
 	prefix = prefix.upper().replace(" ", "")
 	if prefix == "":
-		return jsonify({"results": [
+		return json_response({"results": [
 			"DE12FD",  # Derby bus station
 			"EX1",  # Exeter
 			"L18JX",  # Liverpool bus station
@@ -105,7 +109,7 @@ def postcode_complete():
 				LIMIT 10;
 				""", {'prefix': prefix})
 			data = [postcode for [_short, postcode] in cur.fetchall()]
-			return jsonify({"results": data})
+			return json_response({"results": data})
 
 def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday, length, min_runtime, max_runtime, all_services_array, one_service_array):
 	return {
@@ -302,7 +306,7 @@ def geojson_frequency():
 					maxlng=request.args.get('maxlng'),
 					dow=DAY_OF_WEEK_CODE[request.args.get('dow', '')]))
 
-			return jsonify({
+			return json_response({
 				"type": "FeatureCollection",
 				"features": [
 					_one_feature(*row)
