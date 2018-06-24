@@ -15,10 +15,6 @@ DEC2FLOAT = psycopg2.extensions.new_type(
     lambda value, curs: float(value) if value is not None else None)
 psycopg2.extensions.register_type(DEC2FLOAT)
 
-# Forbid requests for very large areas
-# We're really protected by statement_timeout, so this can be fairly relaxed
-AREA_TOO_LARGE=4.0
-
 BASIC_INFO = {
 	"copyright": "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a> and Naptan. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
 }
