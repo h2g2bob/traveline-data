@@ -86,25 +86,11 @@ def postcode_complete():
 		statement_timeout(conn, 10)
 		with conn.cursor() as cur:
 			cur.execute("""
-				SELECT * FROM (
-					SELECT true as is_short, postcode
-						FROM postcodes_short
-						WHERE postcode LIKE %(prefix)s || '%%'
-						ORDER BY postcode
-						LIMIT 10
-					) AS short_codes
-				UNION ALL
-				SELECT * FROM (
-					SELECT false as is_short, postcode
-						FROM postcodes
-						WHERE postcode LIKE %(prefix)s || '%%'
-						ORDER BY postcode
-						LIMIT 10
-					) AS long_codes
-				ORDER BY is_short desc, postcode
-				LIMIT 10;
+				select unnest(suggestions)
+				from postcode_prefix_lookup
+				where prefix = %(prefix)s
 				""", {'prefix': prefix})
-			data = [postcode for [_short, postcode] in cur.fetchall()]
+			data = [suggestion for [suggestion] in cur.fetchall()]
 			return jsonify({"results": data})
 
 def _one_feature_v3(from_id, to_id, from_lat, from_lng, to_lat, to_lng, weekday, length, min_runtime, max_runtime, all_services_array, one_service_array):
