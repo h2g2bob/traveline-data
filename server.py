@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 # encoding: utf8
+import logging
 
 import psycopg2
-import logging
 from flask import Flask
 from flask import jsonify
 from flask import request
