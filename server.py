@@ -16,7 +16,7 @@ DEC2FLOAT = psycopg2.extensions.new_type(
 psycopg2.extensions.register_type(DEC2FLOAT)
 
 BASIC_INFO = {
-	"copyright": "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a> and Naptan. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
+	"copyright": "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a>, <a href=\"https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan\">Naptan</a> and <a href=\"https://data.gov.uk/dataset/7dc36b99-9b5e-4475-91ab-ab16e1cabb6d/nhs-postcode-directory-latest-centroids\">NHS Postcode Directory</a>. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a> under a <a href=\"https://www.gnu.org/licenses/agpl-3.0.en.html\">AGPLv3 License</a>.",
 }
 
 
