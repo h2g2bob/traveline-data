@@ -1,6 +1,11 @@
 #!/usr/bin/python3
 # encoding: utf8
 import logging
+from math import atan2
+from math import cos
+from math import pi
+from math import sin
+from math import sqrt
 
 import psycopg2
 from flask import Flask
@@ -23,6 +28,9 @@ BASIC_INFO = {
             "Contains public sector information licensed under the Open Government Licence v3.0 from <a href=\"http://www.travelinedata.org.uk/\">Traveline National Dataset (TNDS)</a>, <a href=\"https://data.gov.uk/dataset/ff93ffc1-6656-47d8-9155-85ea0b8f2251/national-public-transport-access-nodes-naptan\">Naptan</a> and <a href=\"https://data.gov.uk/dataset/7dc36b99-9b5e-4475-91ab-ab16e1cabb6d/nhs-postcode-directory-latest-centroids\">NHS Postcode Directory</a>. Data provided by <a href=\"https://github.com/h2g2bob/traveline-data\">traveline-data</a>.",
     }
 }
+
+EARTH_RADIUS_KM = 6371
+MILES_PER_KM = 0.6213712
 
 
 def database():
@@ -132,6 +140,95 @@ def _one_feature_v3(
 
 @app.route('/geojson/v3/links/')
 def geojson_frequency_v3():
+    return geojson_frequency_v34(_one_feature_v3)
+
+
+def _deg2rad(deg):
+    return deg * (pi / 180)
+
+
+def _calc_distance_km(lon1, lat1, lon2, lat2):
+    # https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
+    dLat = _deg2rad(lat2 - lat1)
+    dLon = _deg2rad(lon2 - lon1)
+    a = (
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_deg2rad(lat1)) * cos(_deg2rad(lat2)) * sin(dLon / 2) * sin(dLon / 2))
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    d = EARTH_RADIUS_KM * c
+    return d
+
+
+def _distance(distance_km):
+    return {
+        "km": distance_km,
+        "mi": distance_km * MILES_PER_KM,
+    }
+
+
+def _runtime(runtime_sec):
+    return {
+        "s": runtime_sec,
+        "h": float(runtime_sec) / 3600,
+    }
+
+
+def _speed(distance_km, runtime_sec):
+    runtime_hour = float(runtime_sec) / 3600
+    return {
+        "kph": distance_km / runtime_hour,
+        "mph": MILES_PER_KM * distance_km / runtime_hour,
+    }
+
+
+def _one_feature_v4(
+        from_id,
+        to_id,
+        from_lat,
+        from_lng,
+        to_lat,
+        to_lng,
+        weekday,
+        _length,
+        min_runtime_sec,
+        max_runtime_sec,
+        all_services_array,
+        one_service_array):
+
+    distance_km = _calc_distance_km(from_lng, from_lat, to_lng, to_lat)
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": [
+                [from_lng, from_lat],
+                [to_lng, to_lat],
+            ]
+        },
+        "properties": {
+            "frequencies": {
+                weekday: {
+                    "single_service": one_service_array,
+                    "all_services": all_services_array,
+                },
+            },
+            "runtime": {
+                "min": _runtime(min_runtime_sec),
+                "max": _runtime(max_runtime_sec),
+            },
+            "distance": _distance(distance_km),
+            "speed": _speed(distance_km, max_runtime_sec),
+        },
+        "id": 1
+    }
+
+
+@app.route('/geojson/segments/v4/')
+def geojson_frequency_v4():
+    return geojson_frequency_v34(_one_feature_v4)
+
+
+def geojson_frequency_v34(format_function):
     with database() as conn:
         statement_timeout(conn, 10)
         with conn.cursor() as cur:
@@ -175,7 +272,7 @@ def geojson_frequency_v3():
             return json_response({
                 "type": "FeatureCollection",
                 "features": [
-                    _one_feature_v3(*row)
+                    format_function(*row)
                     for row in cur
                 ]
             })
