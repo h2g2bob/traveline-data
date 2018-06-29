@@ -85,7 +85,7 @@ window.addEventListener("load", function () {
 
 		$.ajax({
 			"method": "GET",
-			"url": "https://api.buildmorebuslanes.com/geojson/v3/links/",
+			"url": "https://api.buildmorebuslanes.com/geojson/segments/v4/",
 			"datatype": "json",
 			"data": {
 				"minlat": bound.getSouth(),
@@ -108,7 +108,7 @@ window.addEventListener("load", function () {
 		useful around their bus stops - it's probably correct to show them less
 		prominently.)
 		*/
-		return feature.properties.length > 0.01 ? 1.0 : 3.0
+		return feature.properties.distance.km > 2.0 ? 1.0 : 3.0
 	};
 
 	var obviously_wrong = function (feature) {
@@ -117,8 +117,8 @@ window.addEventListener("load", function () {
 		I don't trust routes with very long gaps beteen bus stops (although these
 		are sometimes correct for long-distance coach or rail services!)
 		*/
-		return feature.properties.length > 0.2
-	}
+		return feature.properties.distance.km > 4.0
+	};
 
 	var color_freq = function (frequencies, hour) {
 		var freq = frequencies[hour];
@@ -256,7 +256,7 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.runtime.max.s,
 					feature.geometry);
 				return {
 					"color": color,
@@ -269,7 +269,7 @@ window.addEventListener("load", function () {
 				}
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.runtime.max.s,
 					feature.geometry);
 				return color !== undefined;
 			}
@@ -354,7 +354,7 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.runtime.max.s,
 					feature.geometry,
 					assumptions);
 				return {
@@ -368,7 +368,7 @@ window.addEventListener("load", function () {
 				}
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.runtime.max.s,
 					feature.geometry,
 					assumptions);
 				return color !== undefined;
