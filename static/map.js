@@ -101,6 +101,25 @@ window.addEventListener("load", function () {
 		});
 	};
 
+	var weight_by_distance = function (feature) {
+		/*
+		Show long-distance routes with thin lines. Showing all these routes makes
+		the interface very cluttered. (Besides, limited-stop services are only
+		useful around their bus stops - it's probably correct to show them less
+		prominently.)
+		*/
+		return feature.properties.length > 0.01 ? 1.0 : 3.0
+	};
+
+	var obviously_wrong = function (feature) {
+		/*
+		NAPTAN does have some errors, where some bus stops are in the wrong place.
+		I don't trust routes with very long gaps beteen bus stops (although these
+		are sometimes correct for long-distance coach or rail services!)
+		*/
+		return feature.properties.length > 0.2
+	}
+
 	var color_freq = function (frequencies, hour) {
 		var freq = frequencies[hour];
 		if (freq >= 12) {
@@ -127,12 +146,12 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				return {
 					"color": color_freq(feature.properties.frequencies[weekday][frequency_type], hour),
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				return color_freq(feature.properties.frequencies[weekday][frequency_type], hour) !== undefined;
 			}
@@ -163,13 +182,13 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return color !== undefined;
@@ -240,13 +259,13 @@ window.addEventListener("load", function () {
 					feature.properties.runtime.max,
 					feature.geometry);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
@@ -339,13 +358,13 @@ window.addEventListener("load", function () {
 					feature.geometry,
 					assumptions);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
