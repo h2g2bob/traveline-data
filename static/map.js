@@ -85,7 +85,7 @@ window.addEventListener("load", function () {
 
 		$.ajax({
 			"method": "GET",
-			"url": "https://api.buildmorebuslanes.com/geojson/v3/links/",
+			"url": "https://api.buildmorebuslanes.com/geojson/segments/v4/",
 			"datatype": "json",
 			"data": {
 				"minlat": bound.getSouth(),
@@ -99,6 +99,25 @@ window.addEventListener("load", function () {
 			geo_layers.clearLayers();
 			geo_layers.addLayer(geo_layer);
 		});
+	};
+
+	var weight_by_distance = function (feature) {
+		/*
+		Show long-distance routes with thin lines. Showing all these routes makes
+		the interface very cluttered. (Besides, limited-stop services are only
+		useful around their bus stops - it's probably correct to show them less
+		prominently.)
+		*/
+		return feature.properties.distance.km > 2.0 ? 1.0 : 3.0
+	};
+
+	var obviously_wrong = function (feature) {
+		/*
+		NAPTAN does have some errors, where some bus stops are in the wrong place.
+		I don't trust routes with very long gaps beteen bus stops (although these
+		are sometimes correct for long-distance coach or rail services!)
+		*/
+		return feature.properties.distance.km > 4.0
 	};
 
 	var color_freq = function (frequencies, hour) {
@@ -127,12 +146,12 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				return {
 					"color": color_freq(feature.properties.frequencies[weekday][frequency_type], hour),
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				return color_freq(feature.properties.frequencies[weekday][frequency_type], hour) !== undefined;
 			}
@@ -163,13 +182,13 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return color !== undefined;
@@ -177,54 +196,24 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	var deg2rad = function (deg) {
-		/* https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula */
-		return deg * (Math.PI/180)
-	}
-	var distance_in_km = function (lat1, lon1, lat2, lon2) {
-		/* https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula */
-		var R = 6371; // Radius of the earth in km
-		var dLat = deg2rad(lat2-lat1);  // deg2rad below
-		var dLon = deg2rad(lon2-lon1);
-		var a =
-			Math.sin(dLat/2) * Math.sin(dLat/2) +
-			Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-			Math.sin(dLon/2) * Math.sin(dLon/2);
-		var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-		var d = R * c; // Distance in km
-		return d;
-	}
-
-	function color_congestion(frequencies, journey_time, geometry) {
+	function color_congestion(frequencies, speed, geometry) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
 
-		var journey_length = distance_in_km(
-			geometry.coordinates[0][1],
-			geometry.coordinates[0][0],
-			geometry.coordinates[1][1],
-			geometry.coordinates[1][0]);
-
-		if (journey_time === undefined) {
-			return undefined;
-		} else if (journey_time < 1) {
-			/* infinite speed, but still show it so that route can be followed */
+		if (speed === null) {
+			/* unable to calculate speed, often because two bus stops have same departure time */
 			return "#cccccc";
 		}
 
-		/* speed in: mph */
-		var mph_per_kmph = 0.6213712;
-		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
-
-		if (speed > 12) {
+		if (speed.mph > 12) {
 			return "#eeddcc"
-		} else if (speed > 9) {
+		} else if (speed.mph > 9) {
 			return "#ddc6aa"
-		} else if (speed > 6) {
+		} else if (speed.mph > 6) {
 			return "#bb8866"
-		} else if (speed > 3) {
+		} else if (speed.mph > 3) {
 			return "#774411"
 		} else {
 			return "#441100"
@@ -237,85 +226,67 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry);
 				return color !== undefined;
 			}
 		});
 	};
 
-	var passenger_time_saved_per_day = function (journey_length, journey_time, frequencies, assumptions) {
-		var mph_per_kmph = 0.6213712;
-
-		var ideal_speed_mph = assumptions.ideal_speed_mph;
-		var ideal_speed_kmps = (ideal_speed_mph / mph_per_kmph) / 3600;
-
-		var actual_speed_kmps = journey_length / journey_time;
-
-		var distance_km = assumptions.distance_m / 1000;
-		var travel_takes = distance_km / actual_speed_kmps;
-		var ideal_travel_takes = distance_km / ideal_speed_kmps;
-
-		var seconds_saved_per_passenger = travel_takes - ideal_travel_takes;
+	function color_opportunities(frequencies, speed, geometry, assumptions) {
+		var miles_per_meter = 0.0006213712;
 
 		var number_of_buses = 0;
 		for (var i = 0; i < frequencies.length; ++i) {
 			number_of_buses += frequencies[i];
 		}
-		var passengers_per_bus = assumptions.passengers_per_bus;
-		var number_of_passengers = passengers_per_bus * number_of_buses;
-
-		return seconds_saved_per_passenger * number_of_passengers;
-	};
-
-	function color_opportunities(frequencies, journey_time, geometry, assumptions) {
-		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
-			/* no buses all day! */
+		if (number_of_buses === 0) {
 			return undefined;
 		}
 
-		var journey_length = distance_in_km(
-			geometry.coordinates[0][1],
-			geometry.coordinates[0][0],
-			geometry.coordinates[1][1],
-			geometry.coordinates[1][0]);
-
-		if (journey_time === undefined) {
-			return undefined;
-		} else if (journey_time < 1) {
+		if (speed === null) {
 			return undefined;
 		}
 
-		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies, assumptions)
-		var time_saved_hours = time_saved / 3600;
+		var distance_mi = assumptions.distance_m * miles_per_meter;
+
+		var ideal_speed_mph = assumptions.ideal_speed_mph;
+		var ideal_time_h = distance_mi / ideal_speed_mph;
+
+		var actual_speed_mph = speed.mph;
+		var actual_time_h = distance_mi / actual_speed_mph;
+
+		var hours_saved_per_person = actual_time_h - ideal_time_h;
+		var hours_saved_per_bus = hours_saved_per_person * assumptions.passengers_per_bus;
+		var hours_saved_per_day = hours_saved_per_bus * number_of_buses;
 
 		var working_days_per_year = 52 * 5 /* 52 weeks/year * 5 days/week */
 		var median_wage_per_day = assumptions.median_wage_per_year / working_days_per_year;
 		var value_of_time_per_hour = median_wage_per_day / assumptions.hours_worked_per_day;
 
-		var time_saved_cost = value_of_time_per_hour * time_saved_hours;
-		var time_saved_cost_per_year = time_saved_cost * working_days_per_year;
+		var value_of_time_saved = value_of_time_per_hour * hours_saved_per_day;
+		var value_of_time_saved_per_year = value_of_time_saved * working_days_per_year;
 
-		if (time_saved_cost_per_year < 10000) {
+		if (value_of_time_saved_per_year < 10000) {
 			return "#ffddee"
-		} else if (time_saved_cost_per_year < 50000) {
+		} else if (value_of_time_saved_per_year < 50000) {
 			return "#ffccdd"
-		} else if (time_saved_cost_per_year < 100000) {
+		} else if (value_of_time_saved_per_year < 100000) {
 			return "#ff77bb"
-		} else if (time_saved_cost_per_year < 150000) {
+		} else if (value_of_time_saved_per_year < 150000) {
 			return "#ee4499"
 		} else {
 			return "#cc0077"
@@ -335,21 +306,21 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry,
 					assumptions);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
-					"color": color
+					"color": color,
+					"weight": weight_by_distance(feature)
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry,
 					assumptions);
 				return color !== undefined;
