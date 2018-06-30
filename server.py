@@ -167,6 +167,8 @@ def _distance(distance_km):
 
 
 def _runtime(runtime_sec):
+    if runtime_sec is None:
+        return None
     return {
         "s": runtime_sec,
         "h": float(runtime_sec) / 3600,
@@ -174,6 +176,8 @@ def _runtime(runtime_sec):
 
 
 def _speed(distance_km, runtime_sec):
+    if runtime_sec is None:
+        return None
     runtime_hour = float(runtime_sec) / 3600
     if runtime_hour == 0:
         # bus stops have same time scheduled which suggests infinite speed!
