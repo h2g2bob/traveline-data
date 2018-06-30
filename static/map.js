@@ -246,59 +246,47 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	var passenger_time_saved_per_day = function (journey_length, journey_time, frequencies, assumptions) {
-		var mph_per_kmph = 0.6213712;
-
-		var ideal_speed_mph = assumptions.ideal_speed_mph;
-		var ideal_speed_kmps = (ideal_speed_mph / mph_per_kmph) / 3600;
-
-		var actual_speed_kmps = journey_length / journey_time;
-
-		var distance_km = assumptions.distance_m / 1000;
-		var travel_takes = distance_km / actual_speed_kmps;
-		var ideal_travel_takes = distance_km / ideal_speed_kmps;
-
-		var seconds_saved_per_passenger = travel_takes - ideal_travel_takes;
+	function color_opportunities(frequencies, speed, geometry, assumptions) {
+		var miles_per_meter = 0.0006213712;
 
 		var number_of_buses = 0;
 		for (var i = 0; i < frequencies.length; ++i) {
 			number_of_buses += frequencies[i];
 		}
-		var passengers_per_bus = assumptions.passengers_per_bus;
-		var number_of_passengers = passengers_per_bus * number_of_buses;
-
-		return seconds_saved_per_passenger * number_of_passengers;
-	};
-
-	function color_opportunities(frequencies, journey_time, journey_length, geometry, assumptions) {
-		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
-			/* no buses all day! */
+		if (number_of_buses === 0) {
 			return undefined;
 		}
 
-		if (journey_time === undefined) {
-			return undefined;
-		} else if (journey_time < 1) {
+		if (speed === null) {
 			return undefined;
 		}
 
-		var time_saved = passenger_time_saved_per_day(journey_length, journey_time, frequencies, assumptions)
-		var time_saved_hours = time_saved / 3600;
+		var distance_mi = assumptions.distance_m * miles_per_meter;
+
+		var ideal_speed_mph = assumptions.ideal_speed_mph;
+		var ideal_time_h = distance_mi / ideal_speed_mph;
+
+		var actual_speed_mph = speed.mph;
+		var actual_time_h = distance_mi / actual_speed_mph;
+
+		var hours_saved_per_person = actual_time_h - ideal_time_h;
+		var hours_saved_per_bus = hours_saved_per_person * assumptions.passengers_per_bus;
+		var hours_saved_per_day = hours_saved_per_bus * number_of_buses;
 
 		var working_days_per_year = 52 * 5 /* 52 weeks/year * 5 days/week */
 		var median_wage_per_day = assumptions.median_wage_per_year / working_days_per_year;
 		var value_of_time_per_hour = median_wage_per_day / assumptions.hours_worked_per_day;
 
-		var time_saved_cost = value_of_time_per_hour * time_saved_hours;
-		var time_saved_cost_per_year = time_saved_cost * working_days_per_year;
+		var value_of_time_saved = value_of_time_per_hour * hours_saved_per_day;
+		var value_of_time_saved_per_year = value_of_time_saved * working_days_per_year;
 
-		if (time_saved_cost_per_year < 10000) {
+		if (value_of_time_saved_per_year < 10000) {
 			return "#ffddee"
-		} else if (time_saved_cost_per_year < 50000) {
+		} else if (value_of_time_saved_per_year < 50000) {
 			return "#ffccdd"
-		} else if (time_saved_cost_per_year < 100000) {
+		} else if (value_of_time_saved_per_year < 100000) {
 			return "#ff77bb"
-		} else if (time_saved_cost_per_year < 150000) {
+		} else if (value_of_time_saved_per_year < 150000) {
 			return "#ee4499"
 		} else {
 			return "#cc0077"
@@ -318,8 +306,7 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max.s,
-					feature.properties.distance.km,
+					feature.properties.speed,
 					feature.geometry,
 					assumptions);
 				return {
@@ -333,8 +320,7 @@ window.addEventListener("load", function () {
 				}
 				var color = color_opportunities(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max.s,
-					feature.properties.distance.km,
+					feature.properties.speed,
 					feature.geometry,
 					assumptions);
 				return color !== undefined;
