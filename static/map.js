@@ -420,19 +420,17 @@ window.addEventListener("load", function () {
 
 		/* key assumptions */
 		var cost_of_scheme_per_km = cost_m_per_km * 1000000;
+		var cost_of_scheme_per_mi = cost_of_scheme_per_km / 0.6213712;
 
 		var busses_per_weekday = frequencies.reduce(function(x, a) { return a+x; }, 0);
 
-		var mph_per_kmph = 0.6213712;
-		var target_speed_kph = target_speed_mph / mph_per_kmph;
-
-		/* imagine our scheme is for 1km of road, but this doesn't matter as we'll divide by this later */
-		var one_km = 1.0;
+		/* imagine our scheme is for 1mile of road, but this doesn't matter as we'll divide by this later */
+		var one_mi = 1.0;
 
 		/* time saved if bus runs at target speed for 1km */
-		var time_to_go_1km = (one_km / actual_speed.kph);
-		var target_time_to_go_1km = (one_km / target_speed_kph);
-		var hours_saved_per_bus = time_to_go_1km - target_time_to_go_1km;
+		var actual_time_to_go_1mi = (one_mi / actual_speed.mph);
+		var target_time_to_go_1mi = (one_mi / target_speed_mph);
+		var hours_saved_per_bus = actual_time_to_go_1mi - target_time_to_go_1mi;
 
 		/*
 		Value of driver and passengers, based on average occupancy.
@@ -466,7 +464,7 @@ window.addEventListener("load", function () {
 		var multi_year_multiplier = 25.616;
 		var total_value_of_scheme = value_per_year * multi_year_multiplier;
 
-		var cost_of_scheme = one_km * cost_of_scheme_per_km;
+		var cost_of_scheme = one_mi * cost_of_scheme_per_mi;
 		var vfm_ratio = total_value_of_scheme / cost_of_scheme;
 
 		if (vfm_ratio < 1.0) {
