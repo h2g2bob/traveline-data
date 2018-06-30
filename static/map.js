@@ -196,30 +196,24 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	function color_congestion(frequencies, journey_time, journey_length, geometry) {
+	function color_congestion(frequencies, speed, geometry) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
 
-		if (journey_time === undefined) {
-			return undefined;
-		} else if (journey_time < 1) {
-			/* infinite speed, but still show it so that route can be followed */
+		if (speed === null) {
+			/* unable to calculate speed, often because two bus stops have same departure time */
 			return "#cccccc";
 		}
 
-		/* speed in: mph */
-		var mph_per_kmph = 0.6213712;
-		var speed = mph_per_kmph * 3600 * journey_length / journey_time;
-
-		if (speed > 12) {
+		if (speed.mph > 12) {
 			return "#eeddcc"
-		} else if (speed > 9) {
+		} else if (speed.mph > 9) {
 			return "#ddc6aa"
-		} else if (speed > 6) {
+		} else if (speed.mph > 6) {
 			return "#bb8866"
-		} else if (speed > 3) {
+		} else if (speed.mph > 3) {
 			return "#774411"
 		} else {
 			return "#441100"
@@ -232,8 +226,7 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max.s,
-					feature.properties.distance.km,
+					feature.properties.speed,
 					feature.geometry);
 				return {
 					"color": color,
@@ -246,8 +239,7 @@ window.addEventListener("load", function () {
 				}
 				var color = color_congestion(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max.s,
-					feature.properties.distance.km,
+					feature.properties.speed,
 					feature.geometry);
 				return color !== undefined;
 			}
