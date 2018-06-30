@@ -80,6 +80,47 @@ window.addEventListener("load", function () {
 
 	/* data */
 
+	var format_time = function (hour) {
+		if (hour == 0) {
+			return "12am";
+		} else if (hour == 12) {
+			return "12pm";
+		} else if (hour > 12) {
+			return (hour-12) + "pm";
+		} else {
+			return hour + "am";
+		}
+	}
+
+	var create_popup = function (times, speed) {
+		var freq_chart = "<div class='frequency-chart'>" + times.map(function (value, index) {
+			return "<span class='bar hour-" + index + "' style='height: " + (value * 4) + "px'></span>";
+		}).join("") + "</div>";
+
+		var nonzero_bus_times = times.reduce(function (acc, cur_value, cur_index) {
+			if (cur_value > 0) {
+				acc.push(cur_index);
+			}
+			return acc;
+		}, []);
+		var operating_hours = "<div class='operating-hours'><span class='min'>" + format_time(nonzero_bus_times[0]) + "</span><span class='max'>" + format_time(nonzero_bus_times[nonzero_bus_times.length-1]) + "</span></div>";
+
+		var max_bus_count = times.reduce(function (acc, cur_value) {
+			if (cur_value > acc) {
+				return cur_value;
+			}
+			return acc;
+		}, 0);
+		var max_bus_label = "<div class='max-bus-count'><span>" + max_bus_count + "</span></div>";
+
+		var speed_label = "";
+		if (speed !== null) {
+			speed_label = "<div class='speed'>" + speed.mph.toFixed(1) + "&nbsp;mph <span class='kph'>(" + speed.kph.toFixed(0) + "&nbsp;kph)</span></div>";
+		}
+
+		return max_bus_label + freq_chart + operating_hours + speed_label;
+	}
+
 	var fetch_and_refresh_display = function(weekday, json_display_args) {
 		var bound = mymap.getBounds();
 
@@ -120,6 +161,13 @@ window.addEventListener("load", function () {
 		return feature.properties.distance.km > 4.0
 	};
 
+	var timings_popup = function (times, speed) {
+		var _create_popup = function () {
+			return create_popup(times, speed);
+		};
+		return _create_popup;
+	};
+
 	var color_freq = function (frequencies, hour) {
 		var freq = frequencies[hour];
 		if (freq >= 12) {
@@ -154,6 +202,9 @@ window.addEventListener("load", function () {
 					return false;
 				}
 				return color_freq(feature.properties.frequencies[weekday][frequency_type], hour) !== undefined;
+			},
+			onEachFeature: function(feature, layer) {
+				layer.bindPopup(timings_popup(feature.properties.frequencies[weekday][frequency_type], feature.properties.speed));
 			}
 		});
 	};
@@ -192,6 +243,9 @@ window.addEventListener("load", function () {
 				}
 				var color = color_last_bus(feature.properties.frequencies[DOW].all_services);
 				return color !== undefined;
+			},
+			onEachFeature: function(feature, layer) {
+				layer.bindPopup(timings_popup(feature.properties.frequencies[DOW].all_services, feature.properties.speed));
 			}
 		});
 	};
@@ -244,10 +298,7 @@ window.addEventListener("load", function () {
 				return color !== undefined;
 			},
 			onEachFeature: function(feature, layer) {
-				var speed = feature.properties.speed;
-				if (speed !== null) {
-					layer.bindPopup(speed.mph.toFixed(1) + " mph (" + speed.kph.toFixed(1) + " kph)");
-				}
+				layer.bindPopup(timings_popup(feature.properties.frequencies[DOW].all_services, feature.properties.speed));
 			}
 		});
 	};
@@ -330,6 +381,9 @@ window.addEventListener("load", function () {
 					feature.geometry,
 					assumptions);
 				return color !== undefined;
+			},
+			onEachFeature: function(feature, layer) {
+				layer.bindPopup(timings_popup(feature.properties.frequencies[DOW].all_services, feature.properties.speed));
 			}
 		});
 	};

@@ -81,3 +81,52 @@
 	display: none;
 	font-size: 80%;
 }
+
+div.frequency-chart > span.axis,
+div.frequency-chart > span.bar {
+	display: inline-block;
+	vertical-align: bottom;
+	width: 4px;
+	background: #550077;
+	border-bottom: 1px solid black;
+}
+
+div.frequency-chart > span.bar.hour-6,
+div.frequency-chart > span.bar.hour-12,
+div.frequency-chart > span.bar.hour-18 {
+	border-left: 1px dotted black;
+}
+
+div.operating-hours {
+	text-align: center;
+	font-size: 80%;
+}
+div.operating-hours > span {
+	width: 40%;
+	display: inline-block;
+}
+div.operating-hours > span.min {
+	text-align: left;
+}
+div.operating-hours > span.max {
+	text-align: right;
+}
+
+div.max-bus-count {
+	text-align: left;
+	font-size: 80%;
+}
+div.max-bus-count > span {
+	width: 20%;
+	display: inline-block;
+	text-align: left;
+	border-bottom: 1px black dotted;
+}
+
+div.speed {
+	margin-top: 0.2em;
+}
+
+div.speed > span.kph {
+	color: #666666;
+}
