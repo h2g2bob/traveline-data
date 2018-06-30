@@ -408,39 +408,29 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	function color_value(frequencies, journey_time, geometry, target_speed_mph, cost_m_per_km) {
+	function color_value(frequencies, actual_speed, geometry, target_speed_mph, cost_m_per_km) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
 
-		if (journey_time === undefined) {
-			return undefined;
-		} else if (journey_time < 1) {
+		if (actual_speed === null) {
 			return undefined;
 		}
 
 		/* key assumptions */
 		var cost_of_scheme_per_km = cost_m_per_km * 1000000;
 
-		var time_between_stops = journey_time;
 		var busses_per_weekday = frequencies.reduce(function(x, a) { return a+x; }, 0);
-		var distance_between_stops = distance_in_km(
-			geometry.coordinates[0][1],
-			geometry.coordinates[0][0],
-			geometry.coordinates[1][1],
-			geometry.coordinates[1][0]);
 
 		var mph_per_kmph = 0.6213712;
 		var target_speed_kph = target_speed_mph / mph_per_kmph;
-		var actual_speed_kps = distance_between_stops / time_between_stops;
-		var actual_speed_kph = actual_speed_kps * 3600;
 
 		/* imagine our scheme is for 1km of road, but this doesn't matter as we'll divide by this later */
 		var one_km = 1.0;
 
 		/* time saved if bus runs at target speed for 1km */
-		var time_to_go_1km = (one_km / actual_speed_kph);
+		var time_to_go_1km = (one_km / actual_speed.kph);
 		var target_time_to_go_1km = (one_km / target_speed_kph);
 		var hours_saved_per_bus = time_to_go_1km - target_time_to_go_1km;
 
@@ -499,26 +489,29 @@ window.addEventListener("load", function () {
 			style: function (feature) {
 				var color = color_value(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry,
 					target_speed_mph,
 					cost_m_per_km);
 				return {
-					"weight": feature.properties.length > 0.01 ? 1.0 : 3.0,
+					"weight": weight_by_distance(feature),
 					"color": color
 				};
 			},
 			filter: function (feature, layer) {
-				if (feature.properties.length > 0.2) {
-					return false;  /* hide obviously flase long paths */
+				if (obviously_wrong(feature)) {
+					return false;
 				}
 				var color = color_value(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.runtime.max,
+					feature.properties.speed,
 					feature.geometry,
 					target_speed_mph,
 					cost_m_per_km);
 				return color !== undefined;
+			},
+			onEachFeature: function(feature, layer) {
+				layer.bindPopup(timings_popup(feature.properties.frequencies[DOW].all_services, feature.properties.speed));
 			}
 		});
 	};
