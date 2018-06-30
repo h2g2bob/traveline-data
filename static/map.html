@@ -200,25 +200,7 @@
 					</div>
 					<div>Assuming construction costs of
 						<select id="value-cost" class="half">
-							<option value="999.9">Adjust bus stop spacings to avoid acceleration/deceleration</option><!--
-								Reduces travel times.
-
-								A bus can accelerate at about 0.7m/s2 from https://www.reddit.com/r/transit/comments/3zw71y/whats_a_reasonable_rate_of_acceleration_for_a/
-								Assume a final speed of 10mph (4.5m/s)
-								a = dv/dt => 0.7=(4.5-0)/dt
-								t = 4.5/0.7 = 6.42 seconds
-
-								On average the bus would be travelling at half-speed during this acceleration (divide by 2)
-								But we also need to calculate deceleration for each stop (multiply by 2)
-
-								tl;dr: removing a bus stop saves a constant 6.4 seconds
-
-								What should the bus stop spacing be? 400m http://humantransit.org/2010/11/san-francisco-a-rational-stop-spacing-plan.html
-
-								We could imagine adjusting the bus stop spacing to be every 400m, by:
-								- removing all the bus stops (minus 6.4 seconds per segment)
-								- adding 6.4 seconds for each 400m travelled
-								-->
+							<option value="replace">Adjust bus stop spacings to avoid acceleration/deceleration</option>
 							<option value="999.9">Require pay-before-boarding, or contactless with flat-rate fare</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
 							<option value="999.9">Give grants for busses with all-door boarding</option><!--
 								Reduces dwell time. Only makes sense for whole-network analysis.

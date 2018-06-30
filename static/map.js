@@ -408,29 +408,28 @@ window.addEventListener("load", function () {
 		});
 	};
 
-	function color_value(frequencies, actual_speed, geometry, target_speed_mph, cost_m_per_km) {
+	function color_value(frequencies, properties, geometry, cost_for_segment, target_time_in_segment) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
 			return undefined;
 		}
 
-		if (actual_speed === null) {
+		if (properties.speed  === null) {
 			return undefined;
 		}
 
-		/* key assumptions */
-		var cost_of_scheme_per_km = cost_m_per_km * 1000000;
-		var cost_of_scheme_per_mi = cost_of_scheme_per_km / 0.6213712;
+		/* costs */
+		var cost_for_this_segment = cost_for_segment(properties);
 
+		/* savings */
 		var busses_per_weekday = frequencies.reduce(function(x, a) { return a+x; }, 0);
-
-		/* imagine our scheme is for 1mile of road, but this doesn't matter as we'll divide by this later */
-		var one_mi = 1.0;
+		var busses_per_week = busses_per_weekday * 5;
+		var busses_per_year = busses_per_week * 52;
 
 		/* time saved if bus runs at target speed for 1km */
-		var actual_time_to_go_1mi = (one_mi / actual_speed.mph);
-		var target_time_to_go_1mi = (one_mi / target_speed_mph);
-		var hours_saved_per_bus = actual_time_to_go_1mi - target_time_to_go_1mi;
+		var actual_time_in_segment_hrs = properties.runtime.max.h;
+		var target_time_in_segment_hrs = target_time_in_segment(properties);
+		var hours_saved_per_bus = actual_time_in_segment_hrs - target_time_in_segment_hrs;
 
 		/*
 		Value of driver and passengers, based on average occupancy.
@@ -440,17 +439,13 @@ window.addEventListener("load", function () {
 		(A1.3.5 actually gives this value without all the maths)
 		*/
 		var value_of_time_per_bus_hour = 87.69;
-
 		/*
 		6.94 non fuel operating costs (A1.3.13)
 		*/
 		var non_fuel_operating_costs_per_bus_hour = 6.94;
-
 		var value_per_bus_hour = value_of_time_per_bus_hour + non_fuel_operating_costs_per_bus_hour;
-		var value_per_bus = value_per_bus_hour * hours_saved_per_bus;
 
-		var busses_per_year = busses_per_weekday * 5 * 52;
-		var value_per_year = value_per_bus * busses_per_year;
+		var value_per_year = hours_saved_per_bus * busses_per_year * value_per_bus_hour;
 
 		/*
 		https://swlep.co.uk/docs/default-source/programmes/local-growth-fund-lgf/full-business-cases/m4-junction-16/m4-junction-16-fbc-apr-2016.pdf?sfvrsn=34960a8_4#page=34
@@ -464,8 +459,7 @@ window.addEventListener("load", function () {
 		var multi_year_multiplier = 25.616;
 		var total_value_of_scheme = value_per_year * multi_year_multiplier;
 
-		var cost_of_scheme = one_mi * cost_of_scheme_per_mi;
-		var vfm_ratio = total_value_of_scheme / cost_of_scheme;
+		var vfm_ratio = total_value_of_scheme / cost_for_this_segment;
 
 		if (vfm_ratio < 1.0) {
 			return "#ccccff"
@@ -481,16 +475,83 @@ window.addEventListener("load", function () {
 	}
 	var on_change_value = function() {
 		var DOW = 'M';
-		var target_speed_mph = parseFloat($("#value-speed").val());
-		var cost_m_per_km = parseFloat($("#value-cost").val());
+
+		var intervention = $("#value-cost").val();
+		switch (intervention) {
+			case "replace":
+				var cost_for_segment = function (properties) {
+					/*
+					TODO: how much does it cost to re-do the bus stop spacing?!
+					*/
+					var cost_gbp_per_km = 100000;
+					return cost_gbp_per_km * properties.distance.km;
+				}
+				var target_time_in_segment = function (properties) {
+					/*
+					A bus can accelerate and decelerate at about 0.7m/s2
+					(Any more than this and anyone standig up will fall over!)
+					https://www.reddit.com/r/transit/comments/3zw71y/whats_a_reasonable_rate_of_acceleration_for_a/
+					*/
+					var acceleration_of_bus = 0.7;
+
+					/*
+					Time taken to get to final speed
+					I'm using a final speed which is the average speed for the segment,
+					but that's an underestimate because:
+					- the average speed is not the same as the top speed; and
+					- if we didn't need to immediately slow down again, then perhaps our
+					   speed would be higher (hint hint); and
+					*/
+					var top_speed_ms = properties.speed.kph * 1000 / 3600;
+					var time_to_accelerate_to_full_speed = top_speed_ms / acceleration_of_bus;
+
+					/*
+					On average the bus would be travelling at half-speed during this acceleration (divide by 2)
+					But we also need to calculate deceleration for each stop (multiply by 2)
+					*/
+					var time_lost_per_bus_stop = time_to_accelerate_to_full_speed;
+					var time_lost_per_bus_stop_hours = time_lost_per_bus_stop / 3600;
+
+					var bus_travel_time_without_stops = properties.runtime.max.h - time_lost_per_bus_stop_hours;
+					if (bus_travel_time_without_stops < 0) {
+						bus_travel_time_without_stops = 0;
+					}
+
+					/*
+					What should the bus stop spacing be?
+					400m says http://humantransit.org/2010/11/san-francisco-a-rational-stop-spacing-plan.html
+					Re-add one bus stop delay every 400m
+					*/
+					var new_distance_between_stops_km = 0.4;
+					var new_bus_stops_in_segment = properties.distance.km / new_distance_between_stops_km;
+					var new_bus_stop_delay = new_bus_stops_in_segment * time_lost_per_bus_stop_hours;
+
+					return bus_travel_time_without_stops + new_bus_stop_delay;
+				}
+				break;
+
+			case "bus_lane":
+			default:
+				var target_speed_mph = parseFloat($("#value-speed").val());
+				var cost_millions_per_km = parseFloat($("#value-cost").val());
+				var cost_for_segment = function (properties) {
+					var cost_gbp_per_km = cost_millions_per_km * 1000000;
+					return cost_gbp_per_km * properties.distance.km;
+				}
+				var target_time_in_segment = function (properties) {
+					return properties.distance.mi / target_speed_mph;
+				}
+				break;
+		}
+
 		fetch_and_refresh_display(DOW, {
 			style: function (feature) {
 				var color = color_value(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.speed,
+					feature.properties,
 					feature.geometry,
-					target_speed_mph,
-					cost_m_per_km);
+					cost_for_segment,
+					target_time_in_segment);
 				return {
 					"weight": weight_by_distance(feature),
 					"color": color
@@ -502,10 +563,10 @@ window.addEventListener("load", function () {
 				}
 				var color = color_value(
 					feature.properties.frequencies[DOW].all_services,
-					feature.properties.speed,
+					feature.properties,
 					feature.geometry,
-					target_speed_mph,
-					cost_m_per_km);
+					cost_for_segment,
+					target_time_in_segment);
 				return color !== undefined;
 			},
 			onEachFeature: function(feature, layer) {
