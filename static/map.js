@@ -81,7 +81,7 @@ window.addEventListener("load", function () {
 	/* data */
 
 	var format_time = function (hour) {
-		if (hour == 0) {
+		if (hour == 0 || hour == 24) {
 			return "12am";
 		} else if (hour == 12) {
 			return "12pm";
@@ -103,7 +103,7 @@ window.addEventListener("load", function () {
 			}
 			return acc;
 		}, []);
-		var operating_hours = "<div class='operating-hours'><span class='min'>" + format_time(nonzero_bus_times[0]) + "</span><span class='max'>" + format_time(nonzero_bus_times[nonzero_bus_times.length-1]) + "</span></div>";
+		var operating_hours = "<div class='operating-hours'><span class='min'>" + format_time(nonzero_bus_times[0]) + "</span><span class='max'>" + format_time(1 + nonzero_bus_times[nonzero_bus_times.length-1]) + "</span></div>";
 
 		var max_bus_count = times.reduce(function (acc, cur_value) {
 			if (cur_value > acc) {
