@@ -399,7 +399,10 @@ window.addEventListener("load", function () {
 	var on_change = function() {
 		if (mymap.getZoom() <= 11) {
 			/* most web browsers will cry if you do this */
+			$("#zoom-in-hint").show();
 			return;
+		} else {
+			$("#zoom-in-hint").hide();
 		}
 
 		/* refetch and redraw */
@@ -434,7 +437,6 @@ window.addEventListener("load", function () {
 		$("#postcode").val(postcode_from_url);
 		postcode_box_change(postcode_from_url);
 	} else {
-		/* force some random search suggestions to appear */
-		$("#postcode").autocomplete("search", "");
+		$("#postcode").focus();
 	}
 });

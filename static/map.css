@@ -21,6 +21,13 @@
 	width: 20em;
 }
 
+#zoom-in-hint {
+	position: absolute;
+	top: 1.2em;
+	right: 20.8em;
+	z-index: 1000;
+}
+
 #controls .half {
 	width: 49%;
 	margin: 0;
