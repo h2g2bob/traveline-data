@@ -141,7 +141,8 @@ window.addEventListener("load", function () {
 				"maxlat": bound.getNorth(),
 				"minlng": bound.getWest(),
 				"maxlng": bound.getEast(),
-				"weekday": weekday
+				"weekday": weekday,
+				"limit": 200
 			}
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, json_display_args);
