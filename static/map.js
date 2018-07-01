@@ -400,9 +400,11 @@ window.addEventListener("load", function () {
 		if (mymap.getZoom() <= 11) {
 			/* most web browsers will cry if you do this */
 			$("#zoom-in-hint").show();
+			$("#display").hide();
 			return;
 		} else {
 			$("#zoom-in-hint").hide();
+			$("#display").show();
 		}
 
 		/* refetch and redraw */
@@ -438,5 +440,6 @@ window.addEventListener("load", function () {
 		postcode_box_change(postcode_from_url);
 	} else {
 		$("#postcode").focus();
+		on_change();
 	}
 });

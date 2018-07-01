@@ -22,10 +22,10 @@
 }
 
 #zoom-in-hint {
-	position: absolute;
-	top: 1.2em;
-	right: 20.8em;
-	z-index: 1000;
+	padding-left: 1em;
+	padding-right: 1em;
+	padding-top: 2em;
+	padding-bottom: 3em;
 }
 
 #controls .half {
