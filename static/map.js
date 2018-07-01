@@ -131,6 +131,7 @@ window.addEventListener("load", function () {
 
 	var fetch_and_refresh_display = function(weekday, json_display_args) {
 		var bound = mymap.getBounds();
+		var max_display_limit = 1200;
 
 		$.ajax({
 			"method": "GET",
@@ -142,12 +143,16 @@ window.addEventListener("load", function () {
 				"minlng": bound.getWest(),
 				"maxlng": bound.getEast(),
 				"weekday": weekday,
-				"limit": 1200
+				"limit": max_display_limit
 			}
 		}).done(function (data) {
 			var geo_layer = L.geoJSON(data, json_display_args);
 			geo_layers.clearLayers();
 			geo_layers.addLayer(geo_layer);
+
+			if (data["features"].length == max_display_limit) {
+				$("#zoom-in-hint").show();
+			}
 		});
 	};
 
