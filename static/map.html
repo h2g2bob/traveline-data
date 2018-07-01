@@ -201,7 +201,43 @@
 					<div>Assuming construction costs of
 						<select id="value-cost" class="half">
 							<option value="replace">Adjust bus stop spacings to avoid acceleration/deceleration</option>
-							<option value="999.9">Require pay-before-boarding, or contactless with flat-rate fare</option><!-- Reduces dwell time. Only makes sense for whole-network analysis. -->
+							<option value="999.9">On street ticket vending machines (or flat-rate fare with contactless)</option><!--
+								Reduces dwell time. Only makes sense for whole-network analysis.
+								Reduces time a fixed amount per bus stop.
+
+								Case study: Norwich
+								http://civitas.eu/measure/roadside-ticket-vending-machines
+
+								One estimate would be "exact change into farebox" = 4.5 seconds
+								changing to smart card = 2.75 seconds, ie: save 1.75 seconds per person
+								alighting / departing.
+								http://onlinepubs.trb.org/onlinepubs/tcrp/tcrp_rpt_165ch-06.pdf#page=13
+
+								There are 11.3 people on the bus, BUS0304:
+								https://www.gov.uk/government/statistical-data-sets/bus03-passenger-distance-travelled
+
+								17bn passenger miles, BUS0301:
+								https://www.gov.uk/government/statistical-data-sets/bus03-passenger-distance-travelled
+
+								4.93bn passenger journies, BUS0101:
+								https://www.gov.uk/government/statistical-data-sets/bus01-local-bus-passenger-journeys
+
+								17bn passenger miles / 4.93 passenger journies => each passenger travels 3.45 miles per journey.
+
+								11.3 passengers per bus / 3.45 mile journey => passengers get off the bus at a rate of 3.28 per mile.
+
+								So if passengers boarding slowly costs 1.75 per person, that's 1.75*3.28 = 5.73 seconds per mile.
+
+								In http://civitas.eu/sites/default/files/8-520norwich.pdf , 71% (56%+15%) had passes already,
+								so we're only likely to get 29% of this time saving (1.66 seconds/mile).
+
+								Saving: 1.66 seconds per mile per bus
+
+								Cost £40k/yr for 15 machines (£2.7k per machine per year)
+								http://civitas.eu/sites/default/files/8-520norwich.pdf
+
+								Cost: £2.7k per year per stop
+								-->
 							<option value="999.9">Give grants for busses with all-door boarding</option><!--
 								Reduces dwell time. Only makes sense for whole-network analysis.
 
