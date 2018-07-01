@@ -267,10 +267,17 @@ def geojson_frequency_v34(format_function):
                     hour_array_total,
                     hour_array_best_service
 
-                from bus_per_hour_for_day;
+                from bus_per_hour_for_day
+		order by
+			@@line_segment
+			<->
+			@@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+			asc
+		limit %(limit)s;
 
                 """, dict(
-                minlat=request.args.get('minlat'),
+		    limit=request.args.get('limit', 10000),
+		    minlat=request.args.get('minlat'),
                     minlng=request.args.get('minlng'),
                     maxlat=request.args.get('maxlat'),
                     maxlng=request.args.get('maxlng'),

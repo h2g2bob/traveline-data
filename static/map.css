@@ -21,6 +21,13 @@
 	width: 20em;
 }
 
+#zoom-in-hint {
+	padding-left: 1em;
+	padding-right: 1em;
+	padding-top: 2em;
+	padding-bottom: 3em;
+}
+
 #controls .half {
 	width: 49%;
 	margin: 0;
