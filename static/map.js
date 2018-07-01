@@ -408,6 +408,140 @@ window.addEventListener("load", function () {
 		});
 	};
 
+	var calculate_top_speed_meters_per_sec = function (acceleration_of_bus, properties) {
+		/*
+		This function uses meters and seconds everywhere.
+		*/
+		var segment_time = properties.runtime.max.s;
+		var segment_distance = properties.distance.km * 1000;
+
+		/*
+		Before we begin, let's do a sanity check.
+
+		What is the acceleration of the bus, assuming constant acceleration
+		followed by constant deceleration?
+
+		 distance = 1/2 * naive_acceleration * time^2
+
+		Or:
+
+		 naive_acceleration = 2 * distance / time^2
+
+		If we accelerate for half the time (and decelerate for the other half):
+
+		 naive_acceleration = 2 * [distance/2] / [time/2]^2
+		 naive_acceleration = 4 * distance / time^2
+		*/
+
+		var acceleration_if_no_steady = 4.0 * segment_distance / (segment_time * segment_time)
+		if (acceleration_if_no_steady >= acceleration_of_bus) {
+			/*
+			The bus has better acceleration than our target value. (So there's no
+			need to try and improve it.)
+			This check also protects against Math.sqrt of a negative number.
+			*/
+			return undefined;
+		}
+
+		/*
+		We could assume that the top speed is (aproximately) the average speed of
+		the segment.
+
+		But if bus stop spacing is very close, we could be spending the entire time
+		accelerating and decelerating.
+
+		We can model the bus speed in the segment as:
+		   _____
+		  /     \
+		 /       \
+		/         \
+		 1   2   3
+
+		(1) acceleration at 0.7 m/s2 until we reach "top speed"
+		(2) travel at a constant "top speed" (steady-state)
+		(3) deceleration at 0.7 m/s2 from "top speed" until stationary
+
+		Both acceleration (1) and deceleration (2) steps take the
+		same time:
+
+		 segment_time = 2*time_accelerate + time_steady
+
+		For constant acceleration, acceleration = speed / time:
+
+		 time_accelerate = top_speed / acceleration
+
+		Another identity for constant acceleration (from 0 speed)
+		is x(t) = 0.5at^2:
+
+		 distance_traveled_while_accelerating
+		   = 1/2 * acceleration * time_accelerate^2
+		   = 1/2 * acceleration * [top_speed / acceleration]^2
+		   = top_speed^2 / (2*acceleration)
+
+		This suggests that the section at constant speed is:
+
+		 distance_steady
+		   = segment_distance - 2*distance_traveled_while_accelerating
+		   = segment_distance - top_speed^2 / acceleration
+
+		 time_steady
+		   = segment_time - 2*time_accelerate
+		   = segment_time - 2*top_speed / acceleration
+
+		 speed_steady
+		   = distance_steady / time_steady
+		   = (segment_distance - top_speed^2 / acceleration) / (segment_time - 2*top_speed / acceleration)
+
+		Multiply out:
+
+		 speed_steady * (segment_time - 2*top_speed / acceleration)
+		   = (segment_distance - top_speed^2 / acceleration)
+
+		Our scenario states that speed_steady is the same as top_speed. (Additional
+		acceleration/deceleration in the middle should make us under-estimate the
+		top speed)
+
+		 top_speed * (segment_time - 2*top_speed / acceleration)
+		   = (segment_distance - top_speed^2 / acceleration)
+
+		Solve:
+
+		 top_speed * segment_time - 2*top_speed^2 / acceleration
+		   = segment_distance - top_speed^2 / acceleration
+
+		 0 = 1/acceleration * top_speed^2 - segment_time * top_speed + segment_distance
+
+		Try [-b+-sqrt(b^2-4ac)]/2a, where
+		a = 1 / acceleration
+		b = - segment_time
+		c = segment_distance
+
+		 top_speed = [segment_time+-sqrt(segment_time^2 - 4*segment_distance/acceleration)] / [2/acceleration]
+
+		And:
+
+		 top_speed = [acceleration/2] * [segment_time - sqrt(segment_time^2 - 4*segment_distance/acceleration)]
+
+		*/
+
+		var top_speed = (acceleration_of_bus/2) * (segment_time - Math.sqrt(segment_time*segment_time - 4*segment_distance/acceleration_of_bus));
+		if (isNaN(top_speed)) {
+			/* should never happen - we protect against sqrt(negative number) above. */
+			console.log("NaN");
+			return undefined;
+		}
+
+		var time_accelerate = top_speed / acceleration_of_bus;
+		var time_steady = segment_time - 2*time_accelerate;
+		if (time_accelerate < 0 || time_steady < 0) {
+			/* should never happen - we do segment_time MINUS sqrt() */
+			console.log("Negative top speed");
+			return undefined;
+		}
+
+		return top_speed;
+	}
+
 	function color_value(frequencies, properties, geometry, cost_for_segment, target_time_in_segment) {
 		if ($(frequencies).filter(function (x) { return x != 0; }).length == 0) {
 			/* no buses all day! */
@@ -429,6 +563,9 @@ window.addEventListener("load", function () {
 		/* time saved if bus runs at target speed for 1km */
 		var actual_time_in_segment_hrs = properties.runtime.max.h;
 		var target_time_in_segment_hrs = target_time_in_segment(properties);
+		if (target_time_in_segment_hrs === undefined) {
+			return undefined;
+		}
 		var hours_saved_per_bus = actual_time_in_segment_hrs - target_time_in_segment_hrs;
 
 		/*
@@ -496,13 +633,11 @@ window.addEventListener("load", function () {
 
 					/*
 					Time taken to get to final speed
-					I'm using a final speed which is the average speed for the segment,
-					but that's an underestimate because:
-					- the average speed is not the same as the top speed; and
-					- if we didn't need to immediately slow down again, then perhaps our
-					   speed would be higher (hint hint); and
 					*/
-					var top_speed_ms = properties.speed.kph * 1000 / 3600;
+					var top_speed_ms = calculate_top_speed_meters_per_sec(acceleration_of_bus, properties);
+					if (top_speed_ms === undefined) {
+						return undefined;
+					}
 					var time_to_accelerate_to_full_speed = top_speed_ms / acceleration_of_bus;
 
 					/*
