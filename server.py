@@ -252,6 +252,38 @@ def geojson_frequency_v34(format_function):
                     from mv_link_frequency3
                     where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
                     and weekday = %(weekday)s
+                ), bus_per_hour_for_day_grouped as (
+                    select
+                        min(from_stoppoint) as from_stoppoint,
+                        min(to_stoppoint) as to_stoppoint,
+                        (select x from unnest(array_agg(line_segment)) as z(x) limit 1) as line_segment,
+                        min(min_runtime) as min_runtime,
+                        max(max_runtime) as max_runtime,
+                        hourarray_sum(hour_array_total) as hour_array_total,
+                        hourarray_sum(hour_array_best_service) as hour_array_best_service
+
+                    from bus_per_hour_for_day
+                    group by
+                        -- group together from_stoppoint which are nearby by
+                        -- rounding to 4 decimal places (ie: put into buckets)
+                        ((line_segment[0]::point)[0])::numeric(8, 4), -- lat
+                        ((line_segment[0]::point)[1])::numeric(8, 4), -- lng
+
+                        -- Make sure the busses are travelling in the same
+			-- direction.
+			-- Grouping bus stops which are on opposite sides of
+                        -- the road would just make everything unreadable
+                        to_stoppoint
+
+			-- TODO:
+			-- (1) Um.. so this groups together a SEGMENT and not
+			--     a STOP. I'm not sure that even works.
+			-- (2) If we group based on from_stoppoint, we should
+			--     also group by to_stoppoint too
+			--
+			-- Probably this could be a matview for "fixing"
+			-- locations and ids, which we could left join with and
+			-- coalesce?
                 )
                 select
                     from_stoppoint,
@@ -267,7 +299,7 @@ def geojson_frequency_v34(format_function):
                     hour_array_total,
                     hour_array_best_service
 
-                from bus_per_hour_for_day
+                from bus_per_hour_for_day_grouped
 		order by
 			@@line_segment
 			<->
