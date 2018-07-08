@@ -269,10 +269,7 @@ def geojson_frequency_v34(format_function):
 
                 from bus_per_hour_for_day
 		order by
-			@@line_segment
-			<->
-			@@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-			asc
+			(select sum(num) from unnest(hour_array_total) as per_hour(num)) desc
 		limit %(limit)s;
 
                 """, dict(
