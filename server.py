@@ -324,6 +324,67 @@ def geojson_frequency_v34(format_function):
             })
 
 
+"""
+travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
+        with
+
+	-- find bus stops located in roughly the same area and have buses
+	-- going in the same direction (grouping by to_stoppoint)
+        group_by_from as (
+                select
+                ((line_segment[0]::point)[0])::numeric(8, 4) as grouped_lat,
+                ((line_segment[0]::point)[1])::numeric(8, 4) as grouped_lng,
+                to_stoppoint,
+                array_agg(distinct from_stoppoint) as array_from_stoppoint
+                from mv_link_frequency3
+                group by 1, 2, 3
+        ),
+        group_by_to as (
+                select
+                ((line_segment[1]::point)[0])::numeric(8, 4) as grouped_lat,
+                ((line_segment[1]::point)[1])::numeric(8, 4) as grouped_lng,
+                from_stoppoint,
+                array_agg(distinct to_stoppoint) as array_to_stoppoint
+                from mv_link_frequency3
+                group by 1, 2, 3
+        ),
+
+	-- combine both queries. This isn't _quite_ the correct way to do this,
+	-- as min(z) may not be the same
+	all_mappings(canonical, mapping) as (
+		select
+			(select min(z) from unnest(array_from_stoppoint) as x(z)),
+			unnest(array_from_stoppoint)
+			from group_by_from
+			where array_length(array_from_stoppoint, 1) > 1
+		union
+		select
+			(select min(z) from unnest(array_to_stoppoint) as x(z)),
+			unnest(array_to_stoppoint)
+			from group_by_to
+			where array_length(array_to_stoppoint, 1) > 1
+	),
+
+	-- all_mappings can have duplicate entries (one from array_from_stoppoint and
+	-- one from array_to_stoppoint
+	unique_mappings as (
+		select
+			mapping,
+			min(canonical) as canonical
+		from all_mappings
+		group by mapping
+	)
+
+	select
+		mapping,
+		canonical
+	from unique_mappings
+WITH NO DATA;
+REFRESH MATERIALIZED VIEW mv_stop_deduplication;
+CREATE INDEX idx_stop_deduplication ON mv_stop_deduplication USING btree (mapping);
+"""
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     app.run()
