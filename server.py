@@ -241,21 +241,21 @@ def geojson_frequency_v34(format_function):
         with conn.cursor() as cur:
             cur.execute("""
                 with
-		links_with_deduplication_applied as (
+                links_with_deduplication_applied as (
                     select
                         coalesce(dedup_from.canonical, link.from_stoppoint) as from_stoppoint,
                         coalesce(dedup_to.canonical, link.to_stoppoint) as to_stoppoint,
-			case
-			    when dedup_from.canonical is null and dedup_to.canonical is null
-			    then line_segment
-			    else null
-			    end as line_segment,
+                        case
+                            when dedup_from.canonical is null and dedup_to.canonical is null
+                            then line_segment
+                            else null
+                            end as line_segment,
 
-			weekday,
-			hour_array_total,
-			hour_array_best_service,
-			max_runtime,
-			min_runtime
+                        weekday,
+                        hour_array_total,
+                        hour_array_best_service,
+                        max_runtime,
+                        min_runtime
 
                     from mv_link_frequency3 link
 
@@ -263,26 +263,26 @@ def geojson_frequency_v34(format_function):
                     left join mv_stop_deduplication dedup_to on dedup_to.mapping = link.to_stoppoint
 
                     where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-		    and weekday = %(weekday)s
-		),
-		bus_per_hour_for_day as (
-		    select
-			-- implicit group by on these columns
-			weekday,
-			from_stoppoint,
-			to_stoppoint,
+                    and weekday = %(weekday)s
+                ),
+                bus_per_hour_for_day as (
+                    select
+                        -- implicit group by on these columns
+                        weekday,
+                        from_stoppoint,
+                        to_stoppoint,
 
-			-- this value could be null if canonical location is off map
+                        -- this value could be null if canonical location is off map
                         first_value(line_segment) over (partition by weekday, from_stoppoint, to_stoppoint order by line_segment is null asc) as line_segment,
 
-			-- aggregates
+                        -- aggregates
                         min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
                         max(max_runtime) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
                         hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total,
                         hourarray_sum(hour_array_best_service::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_best_service
 
-		    from links_with_deduplication_applied
-		)
+                    from links_with_deduplication_applied
+                )
                 select
                     from_stoppoint,
                     to_stoppoint,
@@ -298,7 +298,7 @@ def geojson_frequency_v34(format_function):
                     hour_array_best_service
 
                 from bus_per_hour_for_day
-		where line_segment is not null
+                where line_segment is not null
                 order by
                         (select sum(num) from unnest(hour_array_total) as per_hour(num)) desc
                 limit %(limit)s;
