@@ -240,70 +240,68 @@ def geojson_frequency_v34(format_function):
         statement_timeout(conn, 10)
         with conn.cursor() as cur:
             cur.execute("""
-                with bus_per_hour_for_day as (
+                with
+		links_with_deduplication_applied as (
                     select
-                        from_stoppoint,
-                        to_stoppoint,
-                        first_value(line_segment) over (partition by from_stoppoint, to_stoppoint) as line_segment,
+                        coalesce(dedup_from.canonical, link.from_stoppoint) as from_stoppoint,
+                        coalesce(dedup_to.canonical, link.to_stoppoint) as to_stoppoint,
+			case
+			    when dedup_from.canonical is null and dedup_to.canonical is null
+			    then line_segment
+			    else null
+			    end as line_segment,
+
+			weekday,
+			hour_array_total,
+			hour_array_best_service,
+			max_runtime,
+			min_runtime
+
+                    from mv_link_frequency3 link
+
+                    left join mv_stop_deduplication dedup_from on dedup_from.mapping = link.from_stoppoint
+                    left join mv_stop_deduplication dedup_to on dedup_to.mapping = link.to_stoppoint
+
+                    where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+		    and weekday = %(weekday)s
+		),
+		bus_per_hour_for_day as (
+		    select
+			-- implicit group by on these columns
+			weekday,
+			from_stoppoint,
+			to_stoppoint,
+
+			-- this value could be null if canonical location is off map
+                        first_value(line_segment) over (partition by weekday, from_stoppoint, to_stoppoint order by line_segment is null asc) as line_segment,
+
+			-- aggregates
                         min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
                         max(max_runtime) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
                         hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total,
                         hourarray_sum(hour_array_best_service::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_best_service
-                    from mv_link_frequency3
-                    where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-                    and weekday = %(weekday)s
-                ), data as (
-                    select
-                        from_stoppoint,
-                        to_stoppoint,
-			line_segment[0]::point as from_point,
-			line_segment[1]::point as to_point,
-                        %(weekday)s as weekday,
-                        length(line_segment) as len,
-                        min_runtime,
-                        max_runtime,
-                        hour_array_total,
-                        hour_array_best_service
-    
-                    from bus_per_hour_for_day
-                    order by
-                        @@line_segment
-                        <->
-                        @@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-                        asc
-                    limit %(limit)s;
-                ), deduplicated as (
-                    select
-                        coalesce(dedup_from.canonical, data.from_stoppoint) as from_stoppoint,
-                        coalesce(dedup_to.canonical, data.to_stoppoint) as to_stoppoint,
-                        coalesce(dedup_from.location, data.from_point) as from_point,
-                        coalesce(dedup_to.location, data.to_point) as to_point,
-                        data.weekday as weekday,
-                        data.len as len,
-                        data.min_runtime as min_runtime,
-                        data.max_runtime as max_runtime,
-                        data.hour_array_total as hour_array_total,
-                        data.hour_array_best_service as hour_array_best_service,
-                    from data
-                    left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
-                    left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
-                )
-                select
-                     from_stoppoint,
-                     to_stoppoint,
-                     from_point[0],
-                     from_point[1],
-                     to_point[0],
-                     to_point[1],
-                     weekday,
-                     min(len) as len,
-                     min(min_runtime) as min_runtime,
-                     max(max_runtime) as max_runtime,
-                     hourarray_sum(hour_array_total) as hour_array_total,
-                     hourarray_sum(hour_array_total) as hour_array_best_service,
-                     
-                     
 
+		    from links_with_deduplication_applied
+		)
+                select
+                    from_stoppoint,
+                    to_stoppoint,
+                    (line_segment[0]::point)[0],
+                    (line_segment[0]::point)[1],
+                    (line_segment[1]::point)[0],
+                    (line_segment[1]::point)[1],
+                    weekday as weekday,
+                    length(line_segment),
+                    min_runtime,
+                    max_runtime,
+                    hour_array_total,
+                    hour_array_best_service
+
+                from bus_per_hour_for_day
+		where line_segment is not null
+                order by
+                        (select sum(num) from unnest(hour_array_total) as per_hour(num)) desc
+                limit %(limit)s;
                 """, dict(
                     limit=request.args.get('limit', 10000),
                     minlat=request.args.get('minlat'),
