@@ -245,10 +245,16 @@ def geojson_frequency_v34(format_function):
                     select
                         coalesce(dedup_from.canonical, link.from_stoppoint) as from_stoppoint,
                         coalesce(dedup_to.canonical, link.to_stoppoint) as to_stoppoint,
+
+                        -- correct lseg if we deduplicated bus stops
+                        -- (we calculate this each time, as there might not be any lseg using
+                        -- both canonical bus stops!)
                         case
                             when dedup_from.canonical is null and dedup_to.canonical is null
                             then line_segment
-                            else null
+                            else lseg(
+                                coalesce(dedup_from.location, link.line_segment[0]),
+                                coalesce(dedup_to.location, link.line_segment[1]))
                             end as line_segment,
 
                         weekday,
@@ -273,7 +279,7 @@ def geojson_frequency_v34(format_function):
                         to_stoppoint,
 
                         -- this value could be null if canonical location is off map
-                        first_value(line_segment) over (partition by weekday, from_stoppoint, to_stoppoint order by line_segment is null asc) as line_segment,
+                        first_value(line_segment) over (partition by weekday, from_stoppoint, to_stoppoint) as line_segment,
 
                         -- aggregates
                         min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
