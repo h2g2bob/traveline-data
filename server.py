@@ -256,12 +256,10 @@ def geojson_frequency_v34(format_function):
                     select
                         from_stoppoint,
                         to_stoppoint,
-                        (line_segment[0]::point)[0],
-                        (line_segment[0]::point)[1],
-                        (line_segment[1]::point)[0],
-                        (line_segment[1]::point)[1],
+			line_segment[0]::point as from_point,
+			line_segment[1]::point as to_point,
                         %(weekday)s as weekday,
-                        length(line_segment),
+                        length(line_segment) as len,
                         min_runtime,
                         max_runtime,
                         hour_array_total,
@@ -274,10 +272,38 @@ def geojson_frequency_v34(format_function):
                         @@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
                         asc
                     limit %(limit)s;
+                ), deduplicated as (
+                    select
+                        coalesce(dedup_from.canonical, data.from_stoppoint) as from_stoppoint,
+                        coalesce(dedup_to.canonical, data.to_stoppoint) as to_stoppoint,
+                        coalesce(dedup_from.location, data.from_point) as from_point,
+                        coalesce(dedup_to.location, data.to_point) as to_point,
+                        data.weekday as weekday,
+                        data.len as len,
+                        data.min_runtime as min_runtime,
+                        data.max_runtime as max_runtime,
+                        data.hour_array_total as hour_array_total,
+                        data.hour_array_best_service as hour_array_best_service,
+                    from data
+                    left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
+                    left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
                 )
-                select * from data
-                left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
-                left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
+                select
+                     from_stoppoint,
+                     to_stoppoint,
+                     from_point[0],
+                     from_point[1],
+                     to_point[0],
+                     to_point[1],
+                     weekday,
+                     min(len) as len,
+                     min(min_runtime) as min_runtime,
+                     max(max_runtime) as max_runtime,
+                     hourarray_sum(hour_array_total) as hour_array_total,
+                     hourarray_sum(hour_array_total) as hour_array_best_service,
+                     
+                     
+
                 """, dict(
                     limit=request.args.get('limit', 10000),
                     minlat=request.args.get('minlat'),
