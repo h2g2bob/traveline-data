@@ -252,61 +252,32 @@ def geojson_frequency_v34(format_function):
                     from mv_link_frequency3
                     where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
                     and weekday = %(weekday)s
-                ), bus_per_hour_for_day_grouped as (
+		), data as (
                     select
-                        min(from_stoppoint) as from_stoppoint,
-                        min(to_stoppoint) as to_stoppoint,
-                        (select x from unnest(array_agg(line_segment)) as z(x) limit 1) as line_segment,
-                        min(min_runtime) as min_runtime,
-                        max(max_runtime) as max_runtime,
-                        hourarray_sum(hour_array_total) as hour_array_total,
-                        hourarray_sum(hour_array_best_service) as hour_array_best_service
-
+                        from_stoppoint,
+                        to_stoppoint,
+                        (line_segment[0]::point)[0],
+                        (line_segment[0]::point)[1],
+                        (line_segment[1]::point)[0],
+                        (line_segment[1]::point)[1],
+                        %(weekday)s as weekday,
+                        length(line_segment),
+                        min_runtime,
+                        max_runtime,
+                        hour_array_total,
+                        hour_array_best_service
+    
                     from bus_per_hour_for_day
-                    group by
-                        -- group together from_stoppoint which are nearby by
-                        -- rounding to 4 decimal places (ie: put into buckets)
-                        ((line_segment[0]::point)[0])::numeric(8, 4), -- lat
-                        ((line_segment[0]::point)[1])::numeric(8, 4), -- lng
-
-                        -- Make sure the busses are travelling in the same
-			-- direction.
-			-- Grouping bus stops which are on opposite sides of
-                        -- the road would just make everything unreadable
-                        to_stoppoint
-
-			-- TODO:
-			-- (1) Um.. so this groups together a SEGMENT and not
-			--     a STOP. I'm not sure that even works.
-			-- (2) If we group based on from_stoppoint, we should
-			--     also group by to_stoppoint too
-			--
-			-- Probably this could be a matview for "fixing"
-			-- locations and ids, which we could left join with and
-			-- coalesce?
+                    order by
+        	        @@line_segment
+                        <->
+        	        @@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+        	        asc
+        	    limit %(limit)s;
                 )
-                select
-                    from_stoppoint,
-                    to_stoppoint,
-                    (line_segment[0]::point)[0],
-                    (line_segment[0]::point)[1],
-                    (line_segment[1]::point)[0],
-                    (line_segment[1]::point)[1],
-                    %(weekday)s as weekday,
-                    length(line_segment),
-                    min_runtime,
-                    max_runtime,
-                    hour_array_total,
-                    hour_array_best_service
-
-                from bus_per_hour_for_day_grouped
-		order by
-			@@line_segment
-			<->
-			@@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-			asc
-		limit %(limit)s;
-
+		select * from data
+		left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
+		left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
                 """, dict(
 		    limit=request.args.get('limit', 10000),
 		    minlat=request.args.get('minlat'),
