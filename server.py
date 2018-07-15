@@ -282,10 +282,10 @@ def geojson_frequency_v34(format_function):
                         first_value(line_segment) over (partition by weekday, from_stoppoint, to_stoppoint) as line_segment,
 
                         -- aggregates
-                        min(min_runtime) over (partition by from_stoppoint, to_stoppoint) as min_runtime,
-                        max(max_runtime) over (partition by from_stoppoint, to_stoppoint) as max_runtime,
-                        hourarray_sum(hour_array_total::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_total,
-                        hourarray_sum(hour_array_best_service::int[24]) over (partition by from_stoppoint, to_stoppoint) as hour_array_best_service
+                        min(min_runtime) over (partition by weekday, from_stoppoint, to_stoppoint) as min_runtime,
+                        max(max_runtime) over (partition by weekday, from_stoppoint, to_stoppoint) as max_runtime,
+                        hourarray_sum(hour_array_total::int[24]) over (partition by weekday, from_stoppoint, to_stoppoint) as hour_array_total,
+                        hourarray_sum(hour_array_best_service::int[24]) over (partition by weekday, from_stoppoint, to_stoppoint) as hour_array_best_service
 
                     from links_with_deduplication_applied
                 )
