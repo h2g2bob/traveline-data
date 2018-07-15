@@ -252,7 +252,7 @@ def geojson_frequency_v34(format_function):
                     from mv_link_frequency3
                     where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
                     and weekday = %(weekday)s
-		), data as (
+                ), data as (
                     select
                         from_stoppoint,
                         to_stoppoint,
@@ -269,18 +269,18 @@ def geojson_frequency_v34(format_function):
     
                     from bus_per_hour_for_day
                     order by
-        	        @@line_segment
+                        @@line_segment
                         <->
-        	        @@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
-        	        asc
-        	    limit %(limit)s;
+                        @@box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
+                        asc
+                    limit %(limit)s;
                 )
-		select * from data
-		left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
-		left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
+                select * from data
+                left join mv_stop_deduplication dedup_from on dedup_from.mapping = data.from_stoppoint
+                left join mv_stop_deduplication dedup_to on dedup_to.mapping = data.to_stoppoint
                 """, dict(
-		    limit=request.args.get('limit', 10000),
-		    minlat=request.args.get('minlat'),
+                    limit=request.args.get('limit', 10000),
+                    minlat=request.args.get('minlat'),
                     minlng=request.args.get('minlng'),
                     maxlat=request.args.get('maxlat'),
                     maxlng=request.args.get('maxlng'),
@@ -299,89 +299,89 @@ def geojson_frequency_v34(format_function):
 travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
         with
 
-	-- find bus stops located in roughly the same area and have buses
-	-- going in the same direction (grouping by to_stoppoint)
+        -- find bus stops located in roughly the same area and have buses
+        -- going in the same direction (grouping by to_stoppoint)
         group_by_from as (
                 select
-			((line_segment[0]::point)[0])::numeric(8, 4) as grouped_lat,
-			((line_segment[0]::point)[1])::numeric(8, 4) as grouped_lng,
-			to_stoppoint,
-			array_agg(distinct from_stoppoint) as array_from_stoppoint,
-			array_agg(line_segment[0]::point) as array_from_stoppoint_locations
+                        ((line_segment[0]::point)[0])::numeric(8, 4) as grouped_lat,
+                        ((line_segment[0]::point)[1])::numeric(8, 4) as grouped_lng,
+                        to_stoppoint,
+                        array_agg(distinct from_stoppoint) as array_from_stoppoint,
+                        array_agg(line_segment[0]::point) as array_from_stoppoint_locations
                 from mv_link_frequency3
                 group by 1, 2, 3
         ),
         group_by_to as (
                 select
-			((line_segment[1]::point)[0])::numeric(8, 4) as grouped_lat,
-			((line_segment[1]::point)[1])::numeric(8, 4) as grouped_lng,
-			from_stoppoint,
-			array_agg(distinct to_stoppoint) as array_to_stoppoint,
-			array_agg(line_segment[1]::point) as array_to_stoppoint_locations
+                        ((line_segment[1]::point)[0])::numeric(8, 4) as grouped_lat,
+                        ((line_segment[1]::point)[1])::numeric(8, 4) as grouped_lng,
+                        from_stoppoint,
+                        array_agg(distinct to_stoppoint) as array_to_stoppoint,
+                        array_agg(line_segment[1]::point) as array_to_stoppoint_locations
                 from mv_link_frequency3
                 group by 1, 2, 3
         ),
 
-	-- combine both queries. This isn't _quite_ the correct way to do this,
-	-- as min(id) may not be the same
-	all_mappings(canonical, location, mapping) as (
-		select
-			-- unique identifier for this array of stoppoints
-			(select min(id) from unnest(array_from_stoppoint) as x(id)),
+        -- combine both queries. This isn't _quite_ the correct way to do this,
+        -- as min(id) may not be the same
+        all_mappings(canonical, location, mapping) as (
+                select
+                        -- unique identifier for this array of stoppoints
+                        (select min(id) from unnest(array_from_stoppoint) as x(id)),
 
-			-- a location for this array of stoppoints
-			(select @@box(
-				point(
-					min(location[0]),
-					max(location[0])),
-				point(
-					min(location[1]),
-					max(location[1])))
-				from unnest(array_from_stoppoint_locations) as y(location)),
+                        -- a location for this array of stoppoints
+                        (select @@box(
+                                point(
+                                        min(location[0]),
+                                        max(location[0])),
+                                point(
+                                        min(location[1]),
+                                        max(location[1])))
+                                from unnest(array_from_stoppoint_locations) as y(location)),
 
-			-- for each stoppoint in the array
-			unnest(array_from_stoppoint)
+                        -- for each stoppoint in the array
+                        unnest(array_from_stoppoint)
 
-			from group_by_from
-			where array_length(array_from_stoppoint, 1) > 1
-		union all
-		select
-			-- unique identifier for this array of stoppoints
-			(select min(id) from unnest(array_to_stoppoint) as x(id)),
+                        from group_by_from
+                        where array_length(array_from_stoppoint, 1) > 1
+                union all
+                select
+                        -- unique identifier for this array of stoppoints
+                        (select min(id) from unnest(array_to_stoppoint) as x(id)),
 
-			-- a location for this array of stoppoints
-			(select @@box(
-				point(
-					min(location[0]),
-					max(location[0])),
-				point(
-					min(location[1]),
-					max(location[1])))
-				from unnest(array_to_stoppoint_locations) as y(location)),
+                        -- a location for this array of stoppoints
+                        (select @@box(
+                                point(
+                                        min(location[0]),
+                                        max(location[0])),
+                                point(
+                                        min(location[1]),
+                                        max(location[1])))
+                                from unnest(array_to_stoppoint_locations) as y(location)),
 
-			-- for each stoppoint in the array
-			unnest(array_to_stoppoint)
+                        -- for each stoppoint in the array
+                        unnest(array_to_stoppoint)
 
-			from group_by_to
-			where array_length(array_to_stoppoint, 1) > 1
-	),
+                        from group_by_to
+                        where array_length(array_to_stoppoint, 1) > 1
+        ),
 
-	-- all_mappings can have duplicate entries (one from array_from_stoppoint and
-	-- one from array_to_stoppoint
-	unique_mappings as (
-		select
-			mapping,
-			array_agg(location) as location_array,
-			min(canonical) as canonical
-		from all_mappings
-		group by mapping
-	)
+        -- all_mappings can have duplicate entries (one from array_from_stoppoint and
+        -- one from array_to_stoppoint
+        unique_mappings as (
+                select
+                        mapping,
+                        array_agg(location) as location_array,
+                        min(canonical) as canonical
+                from all_mappings
+                group by mapping
+        )
 
-	select
-		mapping,
-		canonical,
-		location_array[1] as location
-	from unique_mappings
+        select
+                mapping,
+                canonical,
+                location_array[1] as location
+        from unique_mappings
 WITH NO DATA;
 REFRESH MATERIALIZED VIEW mv_stop_deduplication;
 CREATE INDEX idx_stop_deduplication ON mv_stop_deduplication USING btree (mapping);
