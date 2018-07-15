@@ -332,35 +332,65 @@ travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
 	-- going in the same direction (grouping by to_stoppoint)
         group_by_from as (
                 select
-                ((line_segment[0]::point)[0])::numeric(8, 4) as grouped_lat,
-                ((line_segment[0]::point)[1])::numeric(8, 4) as grouped_lng,
-                to_stoppoint,
-                array_agg(distinct from_stoppoint) as array_from_stoppoint
+			((line_segment[0]::point)[0])::numeric(8, 4) as grouped_lat,
+			((line_segment[0]::point)[1])::numeric(8, 4) as grouped_lng,
+			to_stoppoint,
+			array_agg(distinct from_stoppoint) as array_from_stoppoint,
+			array_agg(line_segment[0]::point) as array_from_stoppoint_locations
                 from mv_link_frequency3
                 group by 1, 2, 3
         ),
         group_by_to as (
                 select
-                ((line_segment[1]::point)[0])::numeric(8, 4) as grouped_lat,
-                ((line_segment[1]::point)[1])::numeric(8, 4) as grouped_lng,
-                from_stoppoint,
-                array_agg(distinct to_stoppoint) as array_to_stoppoint
+			((line_segment[1]::point)[0])::numeric(8, 4) as grouped_lat,
+			((line_segment[1]::point)[1])::numeric(8, 4) as grouped_lng,
+			from_stoppoint,
+			array_agg(distinct to_stoppoint) as array_to_stoppoint,
+			array_agg(line_segment[1]::point) as array_to_stoppoint_locations
                 from mv_link_frequency3
                 group by 1, 2, 3
         ),
 
 	-- combine both queries. This isn't _quite_ the correct way to do this,
-	-- as min(z) may not be the same
-	all_mappings(canonical, mapping) as (
+	-- as min(id) may not be the same
+	all_mappings(canonical, location, mapping) as (
 		select
-			(select min(z) from unnest(array_from_stoppoint) as x(z)),
+			-- unique identifier for this array of stoppoints
+			(select min(id) from unnest(array_from_stoppoint) as x(id)),
+
+			-- a location for this array of stoppoints
+			(select @@box(
+				point(
+					min(location[0]),
+					max(location[0])),
+				point(
+					min(location[1]),
+					max(location[1])))
+				from unnest(array_from_stoppoint_locations) as y(location)),
+
+			-- for each stoppoint in the array
 			unnest(array_from_stoppoint)
+
 			from group_by_from
 			where array_length(array_from_stoppoint, 1) > 1
-		union
+		union all
 		select
-			(select min(z) from unnest(array_to_stoppoint) as x(z)),
+			-- unique identifier for this array of stoppoints
+			(select min(id) from unnest(array_to_stoppoint) as x(id)),
+
+			-- a location for this array of stoppoints
+			(select @@box(
+				point(
+					min(location[0]),
+					max(location[0])),
+				point(
+					min(location[1]),
+					max(location[1])))
+				from unnest(array_to_stoppoint_locations) as y(location)),
+
+			-- for each stoppoint in the array
 			unnest(array_to_stoppoint)
+
 			from group_by_to
 			where array_length(array_to_stoppoint, 1) > 1
 	),
@@ -370,6 +400,7 @@ travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
 	unique_mappings as (
 		select
 			mapping,
+			array_agg(location) as location_array,
 			min(canonical) as canonical
 		from all_mappings
 		group by mapping
@@ -377,7 +408,8 @@ travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
 
 	select
 		mapping,
-		canonical
+		canonical,
+		location_array[1] as location
 	from unique_mappings
 WITH NO DATA;
 REFRESH MATERIALIZED VIEW mv_stop_deduplication;
