@@ -363,9 +363,9 @@ travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
                         (select @@box(
                                 point(
                                         min(location[0]),
-                                        max(location[0])),
+                                        min(location[1])),
                                 point(
-                                        min(location[1]),
+                                        max(location[0]),
                                         max(location[1])))
                                 from unnest(array_from_stoppoint_locations) as y(location)),
 
@@ -383,9 +383,9 @@ travelinedata=> CREATE MATERIALIZED VIEW mv_stop_deduplication AS
                         (select @@box(
                                 point(
                                         min(location[0]),
-                                        max(location[0])),
+                                        min(location[1])),
                                 point(
-                                        min(location[1]),
+                                        max(location[0]),
                                         max(location[1])))
                                 from unnest(array_to_stoppoint_locations) as y(location)),
 
