@@ -272,6 +272,13 @@ def geojson_frequency_v34(format_function):
                     and weekday = %(weekday)s
                 ),
                 bus_per_hour_for_day as (
+--
+--
+-- There's a very limited number of bus stops where this helps
+-- Most problems are from some lines reporting A===B===C and
+-- others A=====C.
+--
+--
                     select
                         -- implicit group by on these columns
                         weekday,
