@@ -252,6 +252,13 @@ def geojson_frequency_v34(format_function):
                     from mv_link_frequency3
                     where lseg_bbox && box(point(%(minlat)s, %(minlng)s), point(%(maxlat)s, %(maxlng)s))
                     and weekday = %(weekday)s
+                ), final as (
+                    select
+                        (select sum(num) from unnest(hour_array_total) as per_hour(num)) as count_bus_per_week,
+                        *
+                    from bus_per_hour_for_day
+                    order by 1 desc
+                    limit %(limit)s
                 )
                 select
                     from_stoppoint,
@@ -266,12 +273,9 @@ def geojson_frequency_v34(format_function):
                     max_runtime,
                     hour_array_total,
                     hour_array_best_service
-
-                from bus_per_hour_for_day
-		order by
-			(select sum(num) from unnest(hour_array_total) as per_hour(num)) desc
-		limit %(limit)s;
-
+                from final
+                -- draw most frequent routes last, which puts them on top
+                order by count_bus_per_week asc;
                 """, dict(
 		    limit=request.args.get('limit', 10000),
 		    minlat=request.args.get('minlat'),
