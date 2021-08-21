@@ -4,7 +4,7 @@ window.addEventListener("load", function () {
 	/* map layers */
 
 	var geo_layers = L.layerGroup().addTo(mymap);
-	var tile_layer = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {
+	var tile_layer = L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}', {
 	    attribution: (""
 		+ "<a href=\"https://github.com/h2g2bob/traveline-data\">h2g2bob's bus map</a>"
 		+ ". Map: <a href=\"http://openstreetmap.org\">OpenStreetMap</a> (<a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">cc-by-sa</a>)"
@@ -15,7 +15,7 @@ window.addEventListener("load", function () {
 		+ " and <a href=\"https://data.gov.uk/dataset/7dc36b99-9b5e-4475-91ab-ab16e1cabb6d/nhs-postcode-directory-latest-centroids\">NHS Postcode Directory</a>"
 		+ "."),
 	    maxZoom: 18,
-	    id: 'mapbox.light',
+	    id: 'light-v10',
 	    accessToken: 'pk.eyJ1IjoiaDJnMmJvYiIsImEiOiJjamUydDB1b3oxb3loMnFxbGdnbWZucmxlIn0.amXanuYenMfuUQxJb4ITKQ'
 	}).addTo(mymap);
 
